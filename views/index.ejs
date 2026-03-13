@@ -7,48 +7,174 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <main class="container">
-      <header class="topo">
-        <h1>Monitor IOERJ</h1>
-        <p><strong>Palavra-chave:</strong> <%= palavraChave %></p>
-        <p>
-          <strong>Última atualização:</strong>
-          <%= ultimaAtualizacao ? new Date(ultimaAtualizacao).toLocaleString('pt-BR') : 'Ainda não executado' %>
-        </p>
-        <p><strong>Total salvo:</strong> <%= total %></p>
-      </header>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">IOERJ Self Service</p>
+          <h1>Receba alertas por palavra-chave no seu e-mail</h1>
+          <p class="subtitle">
+            Cadastre o termo que quer acompanhar no Diario Oficial do Estado do Rio de Janeiro.
+            A aplicacao monitora o portal periodicamente e envia aviso quando uma nova ocorrencia aparece.
+          </p>
+        </div>
 
-      <section class="tabela-box">
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>ID da Matéria</th>
-              <th>Página</th>
-              <th>Jornal</th>
-              <th>Tipo</th>
-              <th>Resumo</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% if (!ocorrencias.length) { %>
-              <tr>
-                <td colspan="6" class="vazio">Nenhuma ocorrência salva ainda.</td>
-              </tr>
-            <% } %>
+        <div class="hero-actions">
+          <form action="/assinaturas" method="post" class="subscription-form">
+            <label>
+              Palavra-chave
+              <input
+                type="text"
+                name="palavraChave"
+                placeholder="Ex.: processo instaurado"
+                required
+              />
+            </label>
 
-            <% ocorrencias.forEach((item) => { %>
+            <label>
+              E-mail
+              <input
+                type="email"
+                name="email"
+                placeholder="voce@exemplo.com"
+                required
+              />
+            </label>
+
+            <div class="form-actions">
+              <button type="submit">Criar alerta</button>
+              <button type="submit" form="manual-monitor-form" class="secondary">
+                Monitorar agora
+              </button>
+            </div>
+          </form>
+
+          <form action="/monitorar-agora" method="post" id="manual-monitor-form"></form>
+
+          <% if (status) { %>
+            <p class="status-banner"><%= status %></p>
+          <% } %>
+        </div>
+      </section>
+
+      <section class="stats-grid">
+        <article class="stat-card">
+          <span>Assinaturas</span>
+          <strong><%= totalAssinaturas %></strong>
+        </article>
+        <article class="stat-card">
+          <span>Palavras monitoradas</span>
+          <strong><%= totalPalavrasMonitoradas %></strong>
+        </article>
+        <article class="stat-card">
+          <span>Ultima atualizacao</span>
+          <strong>
+            <%= ultimaAtualizacao ? new Date(ultimaAtualizacao).toLocaleString('pt-BR') : 'Ainda sem execucao' %>
+          </strong>
+        </article>
+        <article class="stat-card">
+          <span>Intervalo automatico</span>
+          <strong><%= intervaloMonitoramentoMinutos %> min</strong>
+        </article>
+      </section>
+
+      <section class="notice <%= emailConfigurado ? 'notice-ok' : 'notice-warning' %>">
+        <% if (emailConfigurado) { %>
+          <p>SMTP configurado. Os novos resultados podem ser enviados por e-mail.</p>
+        <% } else { %>
+          <p>
+            SMTP nao configurado. As ocorrencias novas ainda aparecem no console, mas os e-mails
+            so serao enviados depois de definir as variaveis `SMTP_HOST`, `SMTP_PORT`,
+            `SMTP_USER`, `SMTP_PASS` e `SMTP_FROM`.
+          </p>
+        <% } %>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Assinaturas ativas</h2>
+          <p>Cada assinatura mantem sua propria lista de IDs conhecidos para evitar alertas de historico antigo.</p>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
               <tr>
-                <td><%= item.dataPublicacao || '-' %></td>
-                <td><strong><%= item.idMateria || '-' %></strong></td>
-                <td><%= item.pagina || '-' %></td>
-                <td><%= item.jornal || '-' %></td>
-                <td><%= item.tipo || '-' %></td>
-                <td><%= item.resumo || '-' %></td>
+                <th>E-mail</th>
+                <th>Palavra-chave</th>
+                <th>Criada em</th>
+                <th>Ultimo monitoramento</th>
+                <th>Ultimo alerta</th>
+                <th>IDs conhecidos</th>
               </tr>
-            <% }) %>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <% if (!assinaturas.length) { %>
+                <tr>
+                  <td colspan="6" class="empty-state">Nenhuma assinatura cadastrada ainda.</td>
+                </tr>
+              <% } %>
+
+              <% assinaturas.forEach((assinatura) => { %>
+                <tr>
+                  <td><%= assinatura.email %></td>
+                  <td class="keyword-cell"><%= assinatura.palavraChave %></td>
+                  <td><%= assinatura.criadaEm ? new Date(assinatura.criadaEm).toLocaleString('pt-BR') : '-' %></td>
+                  <td><%= assinatura.ultimoMonitoramentoEm ? new Date(assinatura.ultimoMonitoramentoEm).toLocaleString('pt-BR') : '-' %></td>
+                  <td><%= assinatura.ultimoAlertaEm ? new Date(assinatura.ultimoAlertaEm).toLocaleString('pt-BR') : '-' %></td>
+                  <td><%= Array.isArray(assinatura.idsConhecidos) ? assinatura.idsConhecidos.length : 0 %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Resultados por palavra monitorada</h2>
+          <p>Resumo das ultimas ocorrencias persistidas localmente em JSON.</p>
+        </div>
+
+        <% if (!palavrasMonitoradas.length) { %>
+          <div class="empty-card">Nenhuma palavra-chave foi consultada ainda.</div>
+        <% } %>
+
+        <div class="keyword-grid">
+          <% palavrasMonitoradas.forEach((registro) => { %>
+            <article class="keyword-card">
+              <div class="keyword-card-top">
+                <div>
+                  <p class="eyebrow small">Palavra-chave</p>
+                  <h3><%= registro.palavraChave %></h3>
+                </div>
+                <span class="pill"><%= registro.total %> ocorrencias</span>
+              </div>
+
+              <p class="keyword-meta">
+                Ultima busca:
+                <strong>
+                  <%= registro.ultimaBuscaEm ? new Date(registro.ultimaBuscaEm).toLocaleString('pt-BR') : '-' %>
+                </strong>
+              </p>
+
+              <div class="mini-table">
+                <% if (!registro.ocorrencias.length) { %>
+                  <p class="empty-inline">Nenhuma ocorrencia salva.</p>
+                <% } %>
+
+                <% registro.ocorrencias.forEach((item) => { %>
+                  <div class="mini-row">
+                    <div class="mini-row-head">
+                      <strong><%= item.idMateria %></strong>
+                      <span><%= item.dataPublicacao %> | Pagina <%= item.pagina %></span>
+                    </div>
+                    <p><%= item.resumo || '-' %></p>
+                  </div>
+                <% }) %>
+              </div>
+            </article>
+          <% }) %>
+        </div>
       </section>
     </main>
   </body>
