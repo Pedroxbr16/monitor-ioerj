@@ -6,14 +6,21 @@ const requireAuth = require('../middleware/requireAuth');
 router.use(requireAuth);
 
 function normalizar(str) {
-  return (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function filtrarExato(resultados, keyword) {
   const termo = normalizar(keyword);
+  if (!termo) return resultados;
+
   return resultados.filter(item => {
-    const campos = [item.resumo, item.jornal, item.tipo].map(normalizar).join(' ');
-    return campos.includes(termo);
+    const resumo = normalizar(item.resumo);
+    return resumo.includes(termo);
   });
 }
 
