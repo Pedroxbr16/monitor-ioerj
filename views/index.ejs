@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= titulo %></title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="topo">
+        <h1>Monitor IOERJ</h1>
+        <p><strong>Palavra-chave:</strong> <%= palavraChave %></p>
+        <p>
+          <strong>Última atualização:</strong>
+          <%= ultimaAtualizacao ? new Date(ultimaAtualizacao).toLocaleString('pt-BR') : 'Ainda não executado' %>
+        </p>
+        <p><strong>Total salvo:</strong> <%= total %></p>
+      </header>
+
+      <section class="tabela-box">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>ID da Matéria</th>
+              <th>Página</th>
+              <th>Jornal</th>
+              <th>Tipo</th>
+              <th>Resumo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (!ocorrencias.length) { %>
+              <tr>
+                <td colspan="6" class="vazio">Nenhuma ocorrência salva ainda.</td>
+              </tr>
+            <% } %>
+
+            <% ocorrencias.forEach((item) => { %>
+              <tr>
+                <td><%= item.dataPublicacao || '-' %></td>
+                <td><strong><%= item.idMateria || '-' %></strong></td>
+                <td><%= item.pagina || '-' %></td>
+                <td><%= item.jornal || '-' %></td>
+                <td><%= item.tipo || '-' %></td>
+                <td><%= item.resumo || '-' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>
