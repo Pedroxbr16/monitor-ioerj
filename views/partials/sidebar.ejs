@@ -1,0 +1,54 @@
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="d-flex align-items-center gap-2">
+      <div class="brand-icon"><i class="bi bi-journal-text"></i></div>
+      <div>
+        <h4>Monitor DOERJ</h4>
+        <small>Diário Oficial do Estado RJ</small>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav flex-column">
+    <li class="nav-item">
+      <a href="/dashboard" class="nav-link <%= page === 'dashboard' ? 'active' : '' %>">
+        <i class="bi bi-grid-1x2-fill"></i> Dashboard
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/keywords" class="nav-link <%= page === 'keywords' ? 'active' : '' %>">
+        <i class="bi bi-key-fill"></i> Palavras-chave
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/alerts" class="nav-link <%= page === 'alerts' ? 'active' : '' %>">
+        <i class="bi bi-bell-fill"></i> Alertas
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/search" class="nav-link <%= page === 'search' ? 'active' : '' %>">
+        <i class="bi bi-search"></i> Busca Histórica
+      </a>
+    </li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <div class="avatar-circle"><%= user.name.charAt(0).toUpperCase() %></div>
+      <div class="user-info">
+        <div class="fw-500"><%= user.name %></div>
+        <div class="text-muted-sm"><%= user.email %></div>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/profile" class="btn-sidebar-sm <%= page === 'profile' ? 'active' : '' %>">
+        <i class="bi bi-person-gear"></i> Perfil
+      </a>
+      <form action="/auth/logout" method="POST" class="d-inline">
+        <button type="submit" class="btn-sidebar-sm">
+          <i class="bi bi-box-arrow-right"></i> Sair
+        </button>
+      </form>
+    </div>
+  </div>
+</nav>

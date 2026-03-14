@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const express = require("express");
 
 const {
@@ -102,3 +103,73 @@ app.listen(PORTA, () => {
 });
 
 iniciarAgendadorMonitoramento(INTERVALO_MONITORAMENTO_MINUTOS);
+=======
+require('dotenv').config();
+const express = require('express');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
+const mongoose = require('mongoose');
+const path = require('path');
+
+const requireAuth = require('./middleware/requireAuth');
+const Keyword = require('./models/Keyword');
+const Alert = require('./models/Alert');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/monitor-doerj';
+
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('[db] MongoDB conectado'))
+  .catch(err => console.error('[db] Erro ao conectar:', err.message));
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'dev-secret-troque',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({ mongoUrl: MONGODB_URI }),
+  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 }
+}));
+
+app.use((req, res, next) => {
+  res.locals.user = req.session.user || null;
+  next();
+});
+
+app.use('/auth', require('./routes/auth'));
+app.use('/keywords', require('./routes/keywords'));
+app.use('/search', require('./routes/search'));
+app.use('/alerts', require('./routes/alerts'));
+app.use('/profile', require('./routes/profile'));
+
+app.get('/', (req, res) => {
+  if (req.session.user) return res.redirect('/dashboard');
+  res.redirect('/auth/login');
+});
+
+app.get('/dashboard', requireAuth, async (req, res) => {
+  const userId = req.session.user.id;
+  const [totalKeywords, activeKeywords, totalAlerts, recentAlerts] = await Promise.all([
+    Keyword.countDocuments({ userId }),
+    Keyword.countDocuments({ userId, active: true }),
+    Alert.countDocuments({ userId }),
+    Alert.find({ userId }).sort({ sentAt: -1 }).limit(10)
+  ]);
+  res.render('dashboard', { totalKeywords, activeKeywords, totalAlerts, recentAlerts });
+});
+
+app.post('/monitor/executar', requireAuth, async (req, res) => {
+  const { executarMonitoramento } = require('./services/monitorService');
+  executarMonitoramento().catch(err => console.error('[manual]', err.message));
+  res.json({ ok: true, msg: 'Monitoramento iniciado em background.' });
+});
+
+require('./jobs/cron');
+
+app.listen(PORT, () => console.log(`[server] Rodando em http://localhost:${PORT}`));
+>>>>>>> dbc7637 (layout+funcionalidades de envio e busca d.o teoricamente ta funcionando nao testei)

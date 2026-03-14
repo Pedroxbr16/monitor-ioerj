@@ -1,0 +1,208 @@
+<%- include('partials/head', { title: 'Palavras-chave' }) %>
+<body>
+<%- include('partials/sidebar', { page: 'keywords' }) %>
+
+<div class="main-content">
+  <div class="top-bar">
+    <div>
+      <h5 class="mb-0 fw-600">Palavras-chave</h5>
+      <small class="text-muted">Gerencie o que você quer monitorar no DOERJ</small>
+    </div>
+    <button class="btn btn-primary btn-sm ms-auto" id="btnAdicionar">
+      <i class="bi bi-plus-lg me-1"></i> Nova palavra-chave
+    </button>
+  </div>
+
+  <div class="page-content">
+    <div class="card">
+      <div class="card-body p-0">
+        <% if (!keywords.length) { %>
+          <div class="empty-state">
+            <i class="bi bi-key"></i>
+            <p>Você ainda não tem palavras-chave cadastradas.</p>
+            <button class="btn btn-primary btn-sm" id="btnAdicionarEmpty">
+              <i class="bi bi-plus-lg me-1"></i> Adicionar agora
+            </button>
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Palavra-chave</th>
+                  <th>Canais</th>
+                  <th>Status</th>
+                  <th>Último scan</th>
+                  <th>IDs monitorados</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% keywords.forEach(kw => { %>
+                  <tr id="row-<%= kw._id %>">
+                    <td>
+                      <span class="fw-500"><%= kw.text %></span>
+                    </td>
+                    <td>
+                      <% if (kw.emailEnabled) { %>
+                        <span class="badge bg-info-soft text-info me-1"><i class="bi bi-envelope-fill me-1"></i>Email</span>
+                      <% } %>
+                      <% if (kw.whatsappEnabled) { %>
+                        <span class="badge bg-success-soft text-success"><i class="bi bi-whatsapp me-1"></i>WhatsApp</span>
+                      <% } %>
+                      <% if (!kw.emailEnabled && !kw.whatsappEnabled) { %>
+                        <span class="text-muted" style="font-size:0.8rem">Nenhum</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <span class="status-badge <%= kw.active ? 'status-active' : 'status-inactive' %>" id="status-<%= kw._id %>">
+                        <i class="bi bi-circle-fill me-1" style="font-size:8px"></i>
+                        <%= kw.active ? 'Ativo' : 'Pausado' %>
+                      </span>
+                    </td>
+                    <td>
+                      <% if (kw.lastChecked) { %>
+                        <span style="font-size:0.85rem;color:#64748b"><%= new Date(kw.lastChecked).toLocaleString('pt-BR') %></span>
+                      <% } else if (!kw.firstScanDone) { %>
+                        <span class="badge bg-warning-soft text-warning">Aguardando 1º scan</span>
+                      <% } else { %>
+                        <span class="text-muted" style="font-size:0.85rem">—</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <span class="badge bg-secondary-soft text-secondary"><%= kw.seenIds.length %> IDs</span>
+                    </td>
+                    <td class="text-end">
+                      <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="editarKeyword('<%= kw._id %>', '<%= kw.text.replace(/'/g, `\\'`) %>', <%= kw.emailEnabled %>, <%= kw.whatsappEnabled %>)" title="Editar">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm <%= kw.active ? 'btn-outline-warning' : 'btn-outline-success' %>" id="btnToggle-<%= kw._id %>" onclick="toggleKeyword('<%= kw._id %>')" title="<%= kw.active ? 'Pausar' : 'Ativar' %>">
+                          <i class="bi bi-<%= kw.active ? 'pause-fill' : 'play-fill' %>"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletarKeyword('<%= kw._id %>', '<%= kw.text.replace(/'/g, `\\'`) %>')" title="Deletar">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/scripts') %>
+<script>
+function abrirModal(id = null, text = '', email = true, whatsapp = false) {
+  Swal.fire({
+    title: id ? 'Editar palavra-chave' : 'Nova palavra-chave',
+    html: `
+      <div class="text-start">
+        <label class="form-label fw-500 mb-1">Palavra ou frase a monitorar</label>
+        <input id="swal-text" class="swal2-input mt-0 mb-3" placeholder="Ex: nome da empresa, CPF, cargo..." value="${text}" style="margin:0 0 12px 0;width:100%">
+        <label class="form-label fw-500 mb-2">Canais de alerta</label>
+        <div class="d-flex gap-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="swal-email" ${email ? 'checked' : ''}>
+            <label class="form-check-label" for="swal-email"><i class="bi bi-envelope-fill text-info me-1"></i>Email</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="swal-zap" ${whatsapp ? 'checked' : ''}>
+            <label class="form-check-label" for="swal-zap"><i class="bi bi-whatsapp text-success me-1"></i>WhatsApp</label>
+          </div>
+        </div>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: id ? 'Salvar alterações' : '<i class="bi bi-plus-lg me-1"></i> Adicionar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#2563eb',
+    focusConfirm: false,
+    customClass: { popup: 'swal-wide' },
+    preConfirm: () => {
+      const t = document.getElementById('swal-text').value.trim();
+      if (!t) { Swal.showValidationMessage('Digite a palavra-chave'); return false; }
+      return {
+        text: t,
+        emailEnabled: document.getElementById('swal-email').checked,
+        whatsappEnabled: document.getElementById('swal-zap').checked
+      };
+    }
+  }).then(async result => {
+    if (!result.isConfirmed) return;
+    const body = result.value;
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/keywords/${id}` : '/keywords';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.ok) {
+      Swal.fire({ icon: 'success', title: id ? 'Salvo!' : 'Adicionado!', text: id ? 'Palavra-chave atualizada.' : 'Monitoramento iniciará no próximo ciclo.', timer: 2000, showConfirmButton: false });
+      setTimeout(() => location.reload(), 1800);
+    } else {
+      Swal.fire({ icon: 'error', title: 'Erro', text: data.erro });
+    }
+  });
+}
+
+document.getElementById('btnAdicionar').addEventListener('click', () => abrirModal());
+const btnEmpty = document.getElementById('btnAdicionarEmpty');
+if (btnEmpty) btnEmpty.addEventListener('click', () => abrirModal());
+
+function editarKeyword(id, text, email, whatsapp) {
+  abrirModal(id, text, email, whatsapp);
+}
+
+async function toggleKeyword(id) {
+  const res = await fetch(`/keywords/${id}/toggle`, { method: 'PATCH' });
+  const data = await res.json();
+  if (data.ok) {
+    const badge = document.getElementById(`status-${id}`);
+    const btn = document.getElementById(`btnToggle-${id}`);
+    if (data.active) {
+      badge.className = 'status-badge status-active';
+      badge.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size:8px"></i> Ativo';
+      btn.className = 'btn btn-sm btn-outline-warning';
+      btn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+      btn.title = 'Pausar';
+    } else {
+      badge.className = 'status-badge status-inactive';
+      badge.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size:8px"></i> Pausado';
+      btn.className = 'btn btn-sm btn-outline-success';
+      btn.innerHTML = '<i class="bi bi-play-fill"></i>';
+      btn.title = 'Ativar';
+    }
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+    Toast.fire({ icon: 'success', title: data.active ? 'Monitoramento ativado' : 'Monitoramento pausado' });
+  }
+}
+
+function deletarKeyword(id, texto) {
+  Swal.fire({
+    title: 'Deletar palavra-chave?',
+    html: `A palavra <strong>"${texto}"</strong> e todo o histórico serão removidos.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sim, deletar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#dc3545'
+  }).then(async result => {
+    if (!result.isConfirmed) return;
+    const res = await fetch(`/keywords/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById(`row-${id}`).remove();
+      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+      Toast.fire({ icon: 'success', title: 'Deletada com sucesso' });
+    }
+  });
+}
+</script>

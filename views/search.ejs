@@ -1,0 +1,130 @@
+<%- include('partials/head', { title: 'Busca Histórica' }) %>
+<body>
+<%- include('partials/sidebar', { page: 'search' }) %>
+
+<div class="main-content">
+  <div class="top-bar">
+    <div>
+      <h5 class="mb-0 fw-600">Busca Histórica</h5>
+      <small class="text-muted">Pesquise publicações antigas no DOERJ sem gerar alertas</small>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0 fw-600"><i class="bi bi-search me-2 text-primary"></i>Parâmetros da busca</h6>
+      </div>
+      <div class="card-body">
+        <form action="/search" method="POST" id="formBusca">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+              <label class="form-label">Palavra ou frase</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" name="keyword" class="form-control" placeholder="Ex: gestores do contrato" required
+                  value="<%= typeof params.keyword !== 'undefined' ? params.keyword : '' %>" />
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Data início <span class="text-muted">(opcional)</span></label>
+              <input type="date" name="dataInicio" class="form-control"
+                value="<%= typeof params.dataInicio !== 'undefined' ? params.dataInicio : '' %>" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Data fim <span class="text-muted">(opcional)</span></label>
+              <input type="date" name="dataFim" class="form-control"
+                value="<%= typeof params.dataFim !== 'undefined' ? params.dataFim : '' %>" />
+            </div>
+            <div class="col-md-1">
+              <button type="submit" class="btn btn-primary w-100" id="btnBuscar">
+                <i class="bi bi-search"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <% if (typeof erro !== 'undefined' && erro) { %>
+      <div class="alert alert-danger d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-circle-fill"></i> Erro ao buscar: <%= erro %>
+      </div>
+    <% } %>
+
+    <% if (resultados !== null) { %>
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-600">
+            <i class="bi bi-list-ul me-2 text-primary"></i>
+            Resultados exatos
+            <% if (resultados.length) { %>
+              <span class="badge bg-primary ms-1"><%= resultados.length %></span>
+            <% } %>
+          </h6>
+          <div class="d-flex align-items-center gap-2">
+            <% if (params.keyword) { %>
+              <span class="badge bg-primary-soft text-primary"><%= params.keyword %></span>
+            <% } %>
+            <% if (totalBruto > resultados.length) { %>
+              <span class="badge bg-warning-soft text-warning" title="O DOERJ retornou <%= totalBruto %> resultados, mas apenas <%= resultados.length %> contêm o termo exato no resumo">
+                <i class="bi bi-funnel-fill me-1"></i><%= totalBruto %> → <%= resultados.length %> após filtro
+              </span>
+            <% } %>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <% if (!resultados.length) { %>
+            <div class="empty-state">
+              <i class="bi bi-file-earmark-x"></i>
+              <p>Nenhuma publicação encontrada para os critérios informados.</p>
+            </div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>ID Matéria</th>
+                    <th>Página</th>
+                    <th>Jornal</th>
+                    <th>Tipo</th>
+                    <th>Resumo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% resultados.forEach(item => { %>
+                    <tr>
+                      <td><span class="badge bg-secondary-soft text-secondary"><%= item.dataPublicacao || '-' %></span></td>
+                      <td><strong><%= item.idMateria || '-' %></strong></td>
+                      <td><%= item.pagina || '-' %></td>
+                      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= item.jornal || '-' %></td>
+                      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= item.tipo || '-' %></td>
+                      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= item.resumo %>"><%= item.resumo || '-' %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('partials/scripts') %>
+<script>
+document.getElementById('formBusca').addEventListener('submit', function () {
+  const btn = document.getElementById('btnBuscar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  Swal.fire({
+    title: 'Buscando no DOERJ...',
+    text: 'Isso pode levar até 30 segundos.',
+    allowOutsideClick: false,
+    showConfirmButton: false,
+    didOpen: () => Swal.showLoading()
+  });
+});
+</script>

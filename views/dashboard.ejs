@@ -1,0 +1,127 @@
+<%- include('partials/head', { title: 'Dashboard' }) %>
+<body>
+<%- include('partials/sidebar', { page: 'dashboard' }) %>
+
+<div class="main-content">
+  <div class="top-bar">
+    <div>
+      <h5 class="mb-0 fw-600">Dashboard</h5>
+      <small class="text-muted">Bem-vindo, <%= user.name %></small>
+    </div>
+    <button class="btn btn-primary btn-sm ms-auto" id="btnMonitorar">
+      <i class="bi bi-play-fill me-1"></i> Executar monitoramento agora
+    </button>
+  </div>
+
+  <div class="page-content">
+    <div class="row g-4 mb-4">
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="number"><%= totalKeywords %></div>
+              <div class="label">Palavras-chave</div>
+            </div>
+            <div class="icon" style="background:#eff6ff;color:#2563eb"><i class="bi bi-key-fill"></i></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="number" style="color:#16a34a"><%= activeKeywords %></div>
+              <div class="label">Monitorando ativamente</div>
+            </div>
+            <div class="icon" style="background:#f0fdf4;color:#16a34a"><i class="bi bi-radar"></i></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="number" style="color:#d97706"><%= totalAlerts %></div>
+              <div class="label">Alertas enviados</div>
+            </div>
+            <div class="icon" style="background:#fffbeb;color:#d97706"><i class="bi bi-bell-fill"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-600"><i class="bi bi-clock-history me-2 text-primary"></i>Alertas recentes</h6>
+        <a href="/alerts" class="btn btn-sm btn-outline-primary">Ver todos</a>
+      </div>
+      <div class="card-body p-0">
+        <% if (!recentAlerts.length) { %>
+          <div class="empty-state">
+            <i class="bi bi-bell-slash"></i>
+            <p>Nenhum alerta ainda. Adicione palavras-chave para começar.</p>
+            <a href="/keywords" class="btn btn-primary btn-sm">Adicionar palavra-chave</a>
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Palavra-chave</th>
+                  <th>Canal</th>
+                  <th>Data DO</th>
+                  <th>Jornal</th>
+                  <th>Tipo</th>
+                  <th>Enviado em</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% recentAlerts.forEach(alert => { %>
+                  <tr>
+                    <td><span class="badge bg-primary-soft text-primary"><%= alert.keywordText %></span></td>
+                    <td>
+                      <% if (alert.channel === 'email') { %>
+                        <span class="badge bg-info-soft text-info"><i class="bi bi-envelope-fill me-1"></i>Email</span>
+                      <% } else { %>
+                        <span class="badge bg-success-soft text-success"><i class="bi bi-whatsapp me-1"></i>WhatsApp</span>
+                      <% } %>
+                    </td>
+                    <td><%= alert.occurrence.dataPublicacao || '-' %></td>
+                    <td class="text-truncate" style="max-width:160px"><%= alert.occurrence.jornal || '-' %></td>
+                    <td class="text-truncate" style="max-width:140px"><%= alert.occurrence.tipo || '-' %></td>
+                    <td><%= new Date(alert.sentAt).toLocaleString('pt-BR') %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/scripts') %>
+<script>
+document.getElementById('btnMonitorar').addEventListener('click', async function () {
+  const btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Executando...';
+
+  Swal.fire({
+    title: 'Monitoramento iniciado!',
+    text: 'O processo está rodando em background. Pode levar alguns minutos.',
+    icon: 'info',
+    timer: 4000,
+    showConfirmButton: false,
+    timerProgressBar: true
+  });
+
+  await fetch('/monitor/executar', { method: 'POST' });
+
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-play-fill me-1"></i> Executar monitoramento agora';
+  }, 5000);
+});
+</script>

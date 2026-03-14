@@ -1,0 +1,115 @@
+<%- include('partials/head', { title: 'Perfil' }) %>
+<body>
+<%- include('partials/sidebar', { page: 'profile' }) %>
+
+<div class="main-content">
+  <div class="top-bar">
+    <div>
+      <h5 class="mb-0 fw-600">Perfil</h5>
+      <small class="text-muted">Suas configurações de conta e alertas</small>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-header">
+            <h6 class="mb-0 fw-600"><i class="bi bi-person-gear me-2 text-primary"></i>Dados da conta</h6>
+          </div>
+          <div class="card-body">
+            <form action="/profile" method="POST" id="formPerfil">
+              <div class="mb-3">
+                <label class="form-label">Nome completo</label>
+                <input type="text" name="name" class="form-control" value="<%= user.name %>" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Email <span class="text-muted">(usado para receber alertas)</span></label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                  <input type="email" class="form-control" value="<%= user.email %>" disabled />
+                </div>
+                <div class="form-text">O email não pode ser alterado.</div>
+              </div>
+              <hr class="my-4" />
+              <h6 class="fw-600 mb-3"><i class="bi bi-whatsapp text-success me-2"></i>Configuração do WhatsApp</h6>
+              <div class="alert alert-info d-flex gap-3 align-items-start py-3 mb-3">
+                <i class="bi bi-info-circle-fill mt-1" style="font-size:1.1rem;flex-shrink:0"></i>
+                <div style="font-size:0.875rem">
+                  <strong>Como ativar o WhatsApp gratuito (CallMeBot):</strong><br>
+                  1. Salve o número <strong>+34 644 59 73 90</strong> na sua agenda<br>
+                  2. Envie pelo WhatsApp: <code>I allow callmebot to send me messages</code><br>
+                  3. Você receberá uma chave API — cole abaixo<br>
+                  4. Use seu número com DDI: ex: <code>5521999999999</code>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Número do WhatsApp <span class="text-muted">(com DDI, sem espaços)</span></label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                  <input type="text" name="phone" class="form-control" placeholder="5521999999999" value="<%= user.phone || '' %>" />
+                </div>
+              </div>
+              <div class="mb-4">
+                <label class="form-label">Chave API CallMeBot</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-key"></i></span>
+                  <input type="text" name="callmebotApikey" class="form-control" placeholder="Chave recebida pelo WhatsApp" value="<%= user.callmebotApikey || '' %>" />
+                </div>
+              </div>
+              <hr class="my-4" />
+              <h6 class="fw-600 mb-3"><i class="bi bi-shield-lock me-2 text-warning"></i>Alterar senha <span class="text-muted fw-400" style="font-size:0.8rem">(deixe em branco para manter a atual)</span></h6>
+              <div class="mb-3">
+                <label class="form-label">Nova senha</label>
+                <input type="password" name="password" class="form-control" placeholder="Mínimo 6 caracteres" minlength="6" />
+              </div>
+              <div class="mb-4">
+                <label class="form-label">Confirmar nova senha</label>
+                <input type="password" name="confirmPassword" class="form-control" placeholder="Repita a nova senha" />
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-floppy me-1"></i> Salvar alterações
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card">
+          <div class="card-header">
+            <h6 class="mb-0 fw-600"><i class="bi bi-envelope me-2 text-info"></i>Configuração de Email</h6>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-light border mb-3" style="font-size:0.875rem">
+              <strong>Como configurar o Gmail para envio:</strong><br><br>
+              1. Ative a <strong>verificação em 2 etapas</strong> no Gmail<br>
+              2. Acesse: <em>Conta Google → Segurança → Senhas de app</em><br>
+              3. Gere uma senha para "Outro" → copie<br>
+              4. Preencha no arquivo <code>.env</code>:<br><br>
+              <code>EMAIL_USER=seu@gmail.com</code><br>
+              <code>EMAIL_PASS=senha-gerada-acima</code>
+            </div>
+            <div class="d-flex align-items-center gap-2 p-3 rounded" style="background:#f1f5f9">
+              <i class="bi bi-envelope-check-fill text-success" style="font-size:1.3rem"></i>
+              <div>
+                <div class="fw-500" style="font-size:0.875rem">Email de destino configurado</div>
+                <div class="text-muted" style="font-size:0.8rem"><%= user.email %></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/scripts') %>
+<script>
+<% if (sucesso) { %>
+  Swal.fire({ icon: 'success', title: 'Salvo!', text: '<%= sucesso %>', timer: 2500, showConfirmButton: false });
+<% } %>
+<% if (erro) { %>
+  Swal.fire({ icon: 'error', title: 'Erro', text: '<%= erro %>' });
+<% } %>
+</script>

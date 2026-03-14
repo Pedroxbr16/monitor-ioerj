@@ -1,0 +1,52 @@
+<%- include('partials/head', { title: 'Criar Conta' }) %>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo"><i class="bi bi-journal-text"></i></div>
+    <h2>Criar Conta</h2>
+    <p class="subtitle">Preencha os dados para se cadastrar</p>
+
+    <% if (erro) { %>
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-3" role="alert">
+        <i class="bi bi-exclamation-circle-fill"></i> <%= erro %>
+      </div>
+    <% } %>
+
+    <form action="/auth/register" method="POST">
+      <div class="mb-3">
+        <label class="form-label">Nome completo</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person"></i></span>
+          <input type="text" name="name" class="form-control" placeholder="Seu nome" required autofocus />
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+          <input type="email" name="email" class="form-control" placeholder="seu@email.com" required />
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Senha</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-lock"></i></span>
+          <input type="password" name="password" class="form-control" placeholder="Mínimo 6 caracteres" required minlength="6" />
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Confirmar senha</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+          <input type="password" name="confirmPassword" class="form-control" placeholder="Repita a senha" required />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100 btn-lg">
+        <i class="bi bi-person-plus me-1"></i> Criar conta
+      </button>
+    </form>
+
+    <p class="text-center mt-4 mb-0 text-muted" style="font-size:0.875rem">
+      Já tem conta? <a href="/auth/login" class="text-primary fw-600">Entrar</a>
+    </p>
+  </div>
+<%- include('partials/scripts') %>

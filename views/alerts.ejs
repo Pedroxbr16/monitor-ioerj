@@ -1,0 +1,105 @@
+<%- include('partials/head', { title: 'Alertas' }) %>
+<body>
+<%- include('partials/sidebar', { page: 'alerts' }) %>
+
+<div class="main-content">
+  <div class="top-bar">
+    <div>
+      <h5 class="mb-0 fw-600">Alertas</h5>
+      <small class="text-muted">Histórico de notificações enviadas</small>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-600"><i class="bi bi-bell-fill me-2 text-primary"></i>Todos os alertas</h6>
+        <% if (alerts.length) { %>
+          <span class="badge bg-primary"><%= alerts.length %> registros</span>
+        <% } %>
+      </div>
+      <div class="card-body p-0">
+        <% if (!alerts.length) { %>
+          <div class="empty-state">
+            <i class="bi bi-bell-slash"></i>
+            <p>Nenhum alerta foi enviado ainda.</p>
+            <a href="/keywords" class="btn btn-primary btn-sm">Configurar palavras-chave</a>
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Palavra-chave</th>
+                  <th>Canal</th>
+                  <th>Status</th>
+                  <th>Data DO</th>
+                  <th>ID Matéria</th>
+                  <th>Jornal</th>
+                  <th>Resumo</th>
+                  <th>Enviado em</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% alerts.forEach(alert => { %>
+                  <tr id="alert-<%= alert._id %>">
+                    <td><span class="badge bg-primary-soft text-primary"><%= alert.keywordText %></span></td>
+                    <td>
+                      <% if (alert.channel === 'email') { %>
+                        <span class="badge bg-info-soft text-info"><i class="bi bi-envelope-fill me-1"></i>Email</span>
+                      <% } else { %>
+                        <span class="badge bg-success-soft text-success"><i class="bi bi-whatsapp me-1"></i>WhatsApp</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <% if (alert.status === 'sent') { %>
+                        <span class="badge bg-success-soft text-success"><i class="bi bi-check-circle-fill me-1"></i>Enviado</span>
+                      <% } else { %>
+                        <span class="badge bg-danger-soft text-danger"><i class="bi bi-x-circle-fill me-1"></i>Falhou</span>
+                      <% } %>
+                    </td>
+                    <td><%= alert.occurrence.dataPublicacao || '-' %></td>
+                    <td><strong><%= alert.occurrence.idMateria || '-' %></strong></td>
+                    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= alert.occurrence.jornal || '-' %></td>
+                    <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= alert.occurrence.resumo %>"><%= alert.occurrence.resumo || '-' %></td>
+                    <td style="white-space:nowrap;font-size:0.82rem;color:#64748b"><%= new Date(alert.sentAt).toLocaleString('pt-BR') %></td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-danger" onclick="deletarAlerta('<%= alert._id %>')" title="Remover">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/scripts') %>
+<script>
+function deletarAlerta(id) {
+  Swal.fire({
+    title: 'Remover alerta?',
+    text: 'Este registro será removido do histórico.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Sim, remover',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#dc3545'
+  }).then(async result => {
+    if (!result.isConfirmed) return;
+    const res = await fetch(`/alerts/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById(`alert-${id}`).remove();
+      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+      Toast.fire({ icon: 'success', title: 'Removido' });
+    }
+  });
+}
+</script>
