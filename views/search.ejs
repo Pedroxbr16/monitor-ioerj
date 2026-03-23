@@ -1,52 +1,89 @@
-<%- include('partials/head', { title: 'Busca Histórica' }) %>
+<%- include('partials/head', { title: 'Busca Historica' }) %>
 <body>
 <%- include('partials/sidebar', { page: 'search' }) %>
 
 <div class="main-content">
   <div class="top-bar">
     <div>
-      <h5 class="mb-0 fw-600">Busca Histórica</h5>
-      <small class="text-muted">Pesquise publicações antigas no DOERJ sem gerar alertas</small>
+      <h5 class="mb-0 fw-600">Busca Historica</h5>
+      <small class="text-muted">Pesquise publicacoes antigas por secao e palavra-chave</small>
     </div>
   </div>
 
   <div class="page-content">
+    <div class="alert alert-info d-flex align-items-start gap-2">
+      <i class="bi bi-info-circle-fill mt-1"></i>
+      <div>
+        Esta tela faz apenas busca historica. Ela nao cria alerta automaticamente.
+        Para receber alertas, salve um monitoramento em <a href="/keywords" class="alert-link">Monitoramentos</a>.
+      </div>
+    </div>
+
     <div class="card mb-4">
       <div class="card-header">
-        <h6 class="mb-0 fw-600"><i class="bi bi-search me-2 text-primary"></i>Parâmetros da busca</h6>
+        <h6 class="mb-0 fw-600"><i class="bi bi-search me-2 text-primary"></i>Parametros da busca</h6>
       </div>
       <div class="card-body">
         <form action="/search" method="POST" id="formBusca">
-          <div class="row g-3 align-items-end">
-            <div class="col-md-5">
-              <label class="form-label">Palavra ou frase</label>
+          <div class="row g-3">
+            <div class="col-lg-5">
+              <label class="form-label">Palavra ou frase <span class="text-muted">(opcional se houver secao)</span></label>
               <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" name="keyword" class="form-control" placeholder="Ex: gestores do contrato" required
-                  value="<%= typeof params.keyword !== 'undefined' ? params.keyword : '' %>" />
+                <input
+                  type="text"
+                  name="keyword"
+                  class="form-control"
+                  placeholder="Ex: gestores do contrato, portaria, auditoria..."
+                  value="<%= params.keyword || '' %>"
+                />
               </div>
+              <div class="form-text">Se voce escolher uma ou mais secoes, pode deixar esse campo em branco para ver tudo daquele escopo.</div>
             </div>
             <div class="col-md-3">
-              <label class="form-label">Data início <span class="text-muted">(opcional)</span></label>
-              <input type="date" name="dataInicio" class="form-control"
-                value="<%= typeof params.dataInicio !== 'undefined' ? params.dataInicio : '' %>" />
+              <label class="form-label">Data inicio <span class="text-muted">(opcional)</span></label>
+              <input type="date" name="dataInicio" class="form-control" value="<%= params.dataInicio || '' %>" />
             </div>
             <div class="col-md-3">
               <label class="form-label">Data fim <span class="text-muted">(opcional)</span></label>
-              <input type="date" name="dataFim" class="form-control"
-                value="<%= typeof params.dataFim !== 'undefined' ? params.dataFim : '' %>" />
+              <input type="date" name="dataFim" class="form-control" value="<%= params.dataFim || '' %>" />
             </div>
-            <div class="col-md-1">
+            <div class="col-md-1 d-flex align-items-end">
               <button type="submit" class="btn btn-primary w-100" id="btnBuscar">
                 <i class="bi bi-search"></i>
               </button>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Secoes do Diario</label>
+              <div class="section-picker">
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="all-sections" <%= !params.sections.length ? 'checked' : '' %>>
+                  <label class="form-check-label fw-500" for="all-sections">Todo o DOERJ</label>
+                </div>
+                <div class="section-checkbox-list <%= !params.sections.length ? 'is-disabled' : '' %>" id="section-options">
+                  <% sectionOptions.forEach(option => { %>
+                    <label class="section-check">
+                      <input
+                        class="form-check-input section-option"
+                        type="checkbox"
+                        name="sections"
+                        value="<%= option.id %>"
+                        <%= params.sections.includes(option.id) ? 'checked' : '' %>
+                        <%= !params.sections.length ? 'disabled' : '' %>
+                      >
+                      <span><%= option.label %></span>
+                    </label>
+                  <% }) %>
+                </div>
+                <div class="form-text mt-2">Marque uma ou mais secoes. Se "Todo o DOERJ" estiver ativo, o filtro de secao e ignorado.</div>
+              </div>
             </div>
           </div>
         </form>
       </div>
     </div>
 
-    <% if (typeof erro !== 'undefined' && erro) { %>
+    <% if (erro) { %>
       <div class="alert alert-danger d-flex align-items-center gap-2">
         <i class="bi bi-exclamation-circle-fill"></i> Erro ao buscar: <%= erro %>
       </div>
@@ -57,18 +94,21 @@
         <div class="card-header d-flex justify-content-between align-items-center">
           <h6 class="mb-0 fw-600">
             <i class="bi bi-list-ul me-2 text-primary"></i>
-            Resultados exatos
+            Resultados
             <% if (resultados.length) { %>
               <span class="badge bg-primary ms-1"><%= resultados.length %></span>
             <% } %>
           </h6>
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="badge <%= params.sections.length ? 'bg-secondary-soft text-secondary' : 'bg-primary-soft text-primary' %>">
+              <%= describeSectionScope(params.sections, { compact: true }) %>
+            </span>
             <% if (params.keyword) { %>
               <span class="badge bg-primary-soft text-primary"><%= params.keyword %></span>
             <% } %>
             <% if (totalBruto > resultados.length) { %>
-              <span class="badge bg-warning-soft text-warning" title="O DOERJ retornou <%= totalBruto %> resultados, mas apenas <%= resultados.length %> contêm o termo exato no resumo">
-                <i class="bi bi-funnel-fill me-1"></i><%= totalBruto %> → <%= resultados.length %> após filtro
+              <span class="badge bg-warning-soft text-warning" title="O IOERJ retornou <%= totalBruto %> resultados, mas apenas <%= resultados.length %> permaneceram apos os filtros locais.">
+                <i class="bi bi-funnel-fill me-1"></i><%= totalBruto %> -> <%= resultados.length %>
               </span>
             <% } %>
           </div>
@@ -77,7 +117,7 @@
           <% if (!resultados.length) { %>
             <div class="empty-state">
               <i class="bi bi-file-earmark-x"></i>
-              <p>Nenhuma publicação encontrada para os critérios informados.</p>
+              <p>Nenhuma publicacao encontrada para os criterios informados.</p>
             </div>
           <% } else { %>
             <div class="table-responsive">
@@ -85,11 +125,12 @@
                 <thead>
                   <tr>
                     <th>Data</th>
-                    <th>ID Matéria</th>
-                    <th>Página</th>
+                    <th>ID Materia</th>
+                    <th>Pagina</th>
                     <th>Jornal</th>
                     <th>Tipo</th>
                     <th>Resumo</th>
+                    <th>Abrir</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -100,7 +141,22 @@
                       <td><%= item.pagina || '-' %></td>
                       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= item.jornal || '-' %></td>
                       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= item.tipo || '-' %></td>
-                      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= item.resumo %>"><%= item.resumo || '-' %></td>
+                      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= item.resumo %>"><%= item.resumo || '-' %></td>
+                      <td>
+                        <% if (item.sourceUrl) { %>
+                          <a
+                            href="<%= item.sourceUrl %>"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-sm btn-outline-primary"
+                            title="Abrir materia no DOERJ"
+                          >
+                            <i class="bi bi-box-arrow-up-right"></i>
+                          </a>
+                        <% } else { %>
+                          <span class="text-muted small">-</span>
+                        <% } %>
+                      </td>
                     </tr>
                   <% }) %>
                 </tbody>
@@ -115,13 +171,56 @@
 
 <%- include('partials/scripts') %>
 <script>
-document.getElementById('formBusca').addEventListener('submit', function () {
+const allSectionsCheckbox = document.getElementById('all-sections');
+const sectionInputs = [...document.querySelectorAll('.section-option')];
+const sectionsWrap = document.getElementById('section-options');
+
+function syncSectionState() {
+  if (allSectionsCheckbox.checked) {
+    sectionInputs.forEach(input => {
+      input.checked = false;
+      input.disabled = true;
+    });
+    sectionsWrap.classList.add('is-disabled');
+    return;
+  }
+
+  sectionInputs.forEach(input => { input.disabled = false; });
+  sectionsWrap.classList.remove('is-disabled');
+}
+
+allSectionsCheckbox.addEventListener('change', syncSectionState);
+sectionInputs.forEach(input => {
+  input.addEventListener('change', () => {
+    const anyChecked = sectionInputs.some(item => item.checked);
+    allSectionsCheckbox.checked = !anyChecked;
+    syncSectionState();
+  });
+});
+
+syncSectionState();
+
+document.getElementById('formBusca').addEventListener('submit', function (event) {
+  const keyword = this.querySelector('input[name="keyword"]').value.trim();
+  const specificSections = sectionInputs.filter(input => input.checked).length;
+
+  if (!keyword && !specificSections) {
+    event.preventDefault();
+    Swal.fire({
+      icon: 'warning',
+      title: 'Falta informar a busca',
+      text: 'Digite uma palavra-chave ou selecione ao menos uma secao especifica.'
+    });
+    return;
+  }
+
   const btn = document.getElementById('btnBuscar');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
   Swal.fire({
     title: 'Buscando no DOERJ...',
-    text: 'Isso pode levar até 30 segundos.',
+    text: 'Isso pode levar ate 30 segundos.',
     allowOutsideClick: false,
     showConfirmButton: false,
     didOpen: () => Swal.showLoading()

@@ -2,6 +2,37 @@ const { chromium } = require('playwright');
 
 const URL_BUSCA = 'https://www.ioerj.com.br/portal/modules/conteudoonline/busca_do.php?acao=busca';
 
+function decodeBase64Param(value) {
+  try {
+    return Buffer.from(String(value || ''), 'base64').toString('utf8').trim();
+  } catch (err) {
+    return '';
+  }
+}
+
+async function buildPublicationLinksById(page) {
+  const hrefs = await page.locator('a[href*="view_publicacao.php"]').evaluateAll(nodes => {
+    return nodes.map(node => node.href).filter(Boolean);
+  });
+
+  const linksById = new Map();
+
+  for (const href of hrefs) {
+    try {
+      const url = new URL(href);
+      const publicationId = decodeBase64Param(url.searchParams.get('i'));
+
+      if (publicationId && !linksById.has(publicationId)) {
+        linksById.set(publicationId, href);
+      }
+    } catch (err) {
+      continue;
+    }
+  }
+
+  return linksById;
+}
+
 function extrairCamposDeLinhas(cabecalho, linhaMeta, resumo) {
   const dataMatch = cabecalho.match(/(\d{2}\/\d{2}\/\d{4})/);
   const paginaMatch = cabecalho.match(/p[aá]gina\s+(\d+)/i);
@@ -30,22 +61,27 @@ async function buscar(keyword, dataInicio = null, dataFim = null) {
     await campoBusca.waitFor();
     await campoBusca.fill(keyword);
 
-    if (dataInicio) {
-      const campoInicio = page.locator('input[name="datainicio"]');
-      const existe = await campoInicio.count();
-      if (existe) await campoInicio.fill(dataInicio);
-    }
+    const dateToApply = dataInicio && dataFim && dataInicio === dataFim
+      ? dataInicio
+      : (dataInicio || dataFim || null);
 
-    if (dataFim) {
-      const campoFim = page.locator('input[name="datafim"]');
-      const existe = await campoFim.count();
-      if (existe) await campoFim.fill(dataFim);
+    if (dateToApply) {
+      const match = String(dateToApply).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+      if (match) {
+        const [, year, month, day] = match;
+
+        await page.locator('input[name="datapublicacao[dia]"]').fill(day);
+        await page.locator('input[name="datapublicacao[mes]"]').fill(month);
+        await page.locator('input[name="datapublicacao[ano]"]').fill(year);
+      }
     }
 
     await page.locator('input[type="submit"][name="buscar"]').click();
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(5000);
 
+    const publicationLinksById = await buildPublicationLinksById(page);
     const textoFinal = await page.locator('body').innerText();
     const linhas = textoFinal.split('\n').map(l => l.trim()).filter(Boolean);
     const ocorrencias = [];
@@ -60,7 +96,11 @@ async function buscar(keyword, dataInicio = null, dataFim = null) {
 
       if (!item.idMateria) continue;
 
-      ocorrencias.push({ ...item, coletadoEm: new Date().toISOString() });
+      ocorrencias.push({
+        ...item,
+        sourceUrl: publicationLinksById.get(item.idMateria) || '',
+        coletadoEm: new Date().toISOString()
+      });
     }
 
     return ocorrencias;

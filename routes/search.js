@@ -1,42 +1,78 @@
 const express = require('express');
 const router = express.Router();
-const { buscar } = require('../services/scraper');
+
 const requireAuth = require('../middleware/requireAuth');
+const { searchOccurrences } = require('../services/occurrenceQuery');
+const {
+  SECTION_OPTIONS,
+  normalizeSectionIds,
+  describeSectionScope
+} = require('../src/sections');
 
 router.use(requireAuth);
 
-function normalizar(str) {
-  return (str || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+function renderSearch(res, payload = {}) {
+  const defaults = {
+    resultados: null,
+    params: {
+      keyword: '',
+      dataInicio: '',
+      dataFim: '',
+      sections: []
+    },
+    totalBruto: 0,
+    erro: null
+  };
 
-function filtrarExato(resultados, keyword) {
-  const termo = normalizar(keyword);
-  if (!termo) return resultados;
+  const mergedPayload = {
+    ...defaults,
+    ...payload
+  };
 
-  return resultados.filter(item => {
-    const resumo = normalizar(item.resumo);
-    return resumo.includes(termo);
+  mergedPayload.params = {
+    ...defaults.params,
+    ...(payload.params || {})
+  };
+
+  res.render('search', {
+    ...mergedPayload,
+    sectionOptions: SECTION_OPTIONS,
+    describeSectionScope
   });
 }
 
 router.get('/', (req, res) => {
-  res.render('search', { resultados: null, params: {}, totalBruto: 0 });
+  renderSearch(res);
 });
 
 router.post('/', async (req, res) => {
   const { keyword, dataInicio, dataFim } = req.body;
+  const sections = normalizeSectionIds(req.body.sections);
+
   try {
-    const todos = await buscar(keyword, dataInicio || null, dataFim || null);
-    const totalBruto = todos.length;
-    const resultados = filtrarExato(todos, keyword);
-    res.render('search', { resultados, params: { keyword, dataInicio, dataFim }, totalBruto });
+    const { results, totalRaw } = await searchOccurrences({
+      text: keyword,
+      sections,
+      dataInicio: dataInicio || null,
+      dataFim: dataFim || null
+    });
+
+    renderSearch(res, {
+      resultados: results,
+      totalBruto: totalRaw,
+      params: { keyword, dataInicio, dataFim, sections }
+    });
   } catch (err) {
-    res.render('search', { resultados: [], params: { keyword, dataInicio, dataFim }, totalBruto: 0, erro: err.message });
+    const erro = err.message === 'informe-palavra-ou-secao'
+      ? 'Informe uma palavra-chave ou selecione ao menos uma seção específica.'
+      : err.message;
+
+    renderSearch(res, {
+      resultados: [],
+      totalBruto: 0,
+      erro,
+      params: { keyword, dataInicio, dataFim, sections }
+    });
   }
 });
 

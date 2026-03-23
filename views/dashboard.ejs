@@ -14,13 +14,21 @@
   </div>
 
   <div class="page-content">
+    <div class="alert alert-info d-flex align-items-start gap-2">
+      <i class="bi bi-radar mt-1"></i>
+      <div>
+        Use "Executar monitoramento agora" para armar ou atualizar as regras sem esperar o horario fixo das 08:00.
+        O primeiro scan nao envia retroativo: ele prepara o monitor para as proximas publicacoes.
+      </div>
+    </div>
+
     <div class="row g-4 mb-4">
       <div class="col-md-4">
         <div class="stat-card">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <div class="number"><%= totalKeywords %></div>
-              <div class="label">Palavras-chave</div>
+              <div class="label">Monitoramentos</div>
             </div>
             <div class="icon" style="background:#eff6ff;color:#2563eb"><i class="bi bi-key-fill"></i></div>
           </div>
@@ -59,15 +67,15 @@
         <% if (!recentAlerts.length) { %>
           <div class="empty-state">
             <i class="bi bi-bell-slash"></i>
-            <p>Nenhum alerta ainda. Adicione palavras-chave para começar.</p>
-            <a href="/keywords" class="btn btn-primary btn-sm">Adicionar palavra-chave</a>
+            <p>Nenhum alerta ainda. Adicione monitoramentos para comecar.</p>
+            <a href="/keywords" class="btn btn-primary btn-sm">Adicionar monitoramento</a>
           </div>
         <% } else { %>
           <div class="table-responsive">
             <table class="table table-hover mb-0">
               <thead>
                 <tr>
-                  <th>Palavra-chave</th>
+                  <th>Monitoramento</th>
                   <th>Canal</th>
                   <th>Data DO</th>
                   <th>Jornal</th>
@@ -110,7 +118,7 @@ document.getElementById('btnMonitorar').addEventListener('click', async function
 
   Swal.fire({
     title: 'Monitoramento iniciado!',
-    text: 'O processo está rodando em background. Pode levar alguns minutos.',
+    text: 'O processo esta rodando em background. Pode levar alguns minutos.',
     icon: 'info',
     timer: 4000,
     showConfirmButton: false,

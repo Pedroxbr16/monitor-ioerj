@@ -6,7 +6,7 @@
   <div class="top-bar">
     <div>
       <h5 class="mb-0 fw-600">Alertas</h5>
-      <small class="text-muted">Histórico de notificações enviadas</small>
+      <small class="text-muted">Historico de notificacoes enviadas</small>
     </div>
   </div>
 
@@ -23,27 +23,34 @@
           <div class="empty-state">
             <i class="bi bi-bell-slash"></i>
             <p>Nenhum alerta foi enviado ainda.</p>
-            <a href="/keywords" class="btn btn-primary btn-sm">Configurar palavras-chave</a>
+            <a href="/keywords" class="btn btn-primary btn-sm">Configurar monitoramentos</a>
           </div>
         <% } else { %>
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th>Palavra-chave</th>
+                  <th>Monitoramento</th>
                   <th>Canal</th>
                   <th>Status</th>
                   <th>Data DO</th>
-                  <th>ID Matéria</th>
+                  <th>ID Materia</th>
                   <th>Jornal</th>
                   <th>Resumo</th>
                   <th>Enviado em</th>
+                  <th>Abrir</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 <% alerts.forEach(alert => { %>
-                  <tr id="alert-<%= alert._id %>">
+                  <tr
+                    id="alert-<%= alert._id %>"
+                    class="clickable-row"
+                    data-row-url="<%= alert.viewUrl %>"
+                    tabindex="0"
+                    title="Clique para abrir a leitura do alerta"
+                  >
                     <td><span class="badge bg-primary-soft text-primary"><%= alert.keywordText %></span></td>
                     <td>
                       <% if (alert.channel === 'email') { %>
@@ -60,12 +67,42 @@
                       <% } %>
                     </td>
                     <td><%= alert.occurrence.dataPublicacao || '-' %></td>
-                    <td><strong><%= alert.occurrence.idMateria || '-' %></strong></td>
+                    <td>
+                      <% if (alert.occurrence.sourceUrl) { %>
+                        <a
+                          href="<%= alert.occurrence.sourceUrl %>"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="fw-700 text-decoration-none"
+                          data-row-ignore="true"
+                        >
+                          <%= alert.occurrence.idMateria || '-' %>
+                        </a>
+                      <% } else { %>
+                        <strong><%= alert.occurrence.idMateria || '-' %></strong>
+                      <% } %>
+                    </td>
                     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= alert.occurrence.jornal || '-' %></td>
-                    <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= alert.occurrence.resumo %>"><%= alert.occurrence.resumo || '-' %></td>
+                    <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= alert.occurrence.resumo %>"><%- alert.highlightedResumo || '-' %></td>
                     <td style="white-space:nowrap;font-size:0.82rem;color:#64748b"><%= new Date(alert.sentAt).toLocaleString('pt-BR') %></td>
                     <td>
-                      <button class="btn btn-sm btn-outline-danger" onclick="deletarAlerta('<%= alert._id %>')" title="Remover">
+                      <% if (alert.occurrence.sourceUrl) { %>
+                        <a
+                          href="<%= alert.occurrence.sourceUrl %>"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="btn btn-sm btn-outline-primary"
+                          title="Abrir materia no DOERJ"
+                          data-row-ignore="true"
+                        >
+                          <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                      <% } else { %>
+                        <span class="text-muted small">-</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-danger" onclick="deletarAlerta('<%= alert._id %>')" title="Remover" data-row-ignore="true">
                         <i class="bi bi-trash"></i>
                       </button>
                     </td>
@@ -82,10 +119,27 @@
 
 <%- include('partials/scripts') %>
 <script>
+document.querySelectorAll('.clickable-row[data-row-url]').forEach(row => {
+  function shouldIgnore(target) {
+    return !!target.closest('a, button, [data-row-ignore="true"]');
+  }
+
+  row.addEventListener('click', event => {
+    if (shouldIgnore(event.target)) return;
+    window.location.href = row.dataset.rowUrl;
+  });
+
+  row.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    window.location.href = row.dataset.rowUrl;
+  });
+});
+
 function deletarAlerta(id) {
   Swal.fire({
     title: 'Remover alerta?',
-    text: 'Este registro será removido do histórico.',
+    text: 'Este registro sera removido do historico.',
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Sim, remover',
@@ -97,8 +151,8 @@ function deletarAlerta(id) {
     const data = await res.json();
     if (data.ok) {
       document.getElementById(`alert-${id}`).remove();
-      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-      Toast.fire({ icon: 'success', title: 'Removido' });
+      const toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+      toast.fire({ icon: 'success', title: 'Removido' });
     }
   });
 }

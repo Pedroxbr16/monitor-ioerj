@@ -1,0 +1,85 @@
+<%- include('partials/head', { title: 'Leitura do Alerta' }) %>
+<body>
+<%- include('partials/sidebar', { page: 'alerts' }) %>
+
+<div class="main-content">
+  <div class="top-bar">
+    <div>
+      <h5 class="mb-0 fw-600">Leitura do alerta</h5>
+      <small class="text-muted">Trecho destacado do monitoramento</small>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a href="/alerts" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Voltar para alertas
+      </a>
+      <% if (alert.occurrence.sourceUrl) { %>
+        <a
+          href="<%= alert.occurrence.sourceUrl %>"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-primary btn-sm"
+        >
+          <i class="bi bi-box-arrow-up-right me-1"></i>Abrir no DOERJ
+        </a>
+      <% } %>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0 fw-600"><i class="bi bi-info-circle-fill me-2 text-primary"></i>Detalhes do alerta</h6>
+      </div>
+      <div class="card-body">
+        <div class="alert-meta-grid">
+          <div>
+            <small class="text-muted d-block">Monitoramento</small>
+            <strong><%= alert.monitorLabel || alert.keywordText %></strong>
+          </div>
+          <div>
+            <small class="text-muted d-block">Data do DO</small>
+            <strong><%= alert.occurrence.dataPublicacao || '-' %></strong>
+          </div>
+          <div>
+            <small class="text-muted d-block">ID da materia</small>
+            <strong><%= alert.occurrence.idMateria || '-' %></strong>
+          </div>
+          <div>
+            <small class="text-muted d-block">Enviado em</small>
+            <strong><%= new Date(alert.sentAt).toLocaleString('pt-BR') %></strong>
+          </div>
+        </div>
+
+        <% if (alert.highlightTerms.length) { %>
+          <div class="mt-4">
+            <small class="text-muted d-block mb-2">Destaques aplicados</small>
+            <div class="d-flex flex-wrap gap-2">
+              <% alert.highlightTerms.forEach(term => { %>
+                <span class="badge bg-warning-soft text-warning border border-warning-subtle"><%= term %></span>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
+
+        <% if (alert.ignoredShortKeyword) { %>
+          <div class="alert alert-warning mt-3 mb-0">
+            O termo "<strong><%= alert.ignoredShortKeyword %></strong>" e muito curto para destacar sem pintar o texto inteiro.
+            Por isso, destaquei a secao monitorada.
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0 fw-600"><i class="bi bi-highlighter me-2 text-primary"></i>Trecho encontrado</h6>
+      </div>
+      <div class="card-body">
+        <div class="highlighted-reading"><%- highlightedResumoLongo || '-' %></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/scripts') %>

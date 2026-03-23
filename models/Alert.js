@@ -11,7 +11,8 @@ const alertSchema = new mongoose.Schema({
     pagina: String,
     jornal: String,
     tipo: String,
-    resumo: String
+    resumo: String,
+    sourceUrl: String
   },
   status: { type: String, enum: ['sent', 'failed'], default: 'sent' },
   sentAt: { type: Date, default: Date.now }

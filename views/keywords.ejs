@@ -1,25 +1,33 @@
-<%- include('partials/head', { title: 'Palavras-chave' }) %>
+<%- include('partials/head', { title: 'Monitoramentos' }) %>
 <body>
 <%- include('partials/sidebar', { page: 'keywords' }) %>
 
 <div class="main-content">
   <div class="top-bar">
     <div>
-      <h5 class="mb-0 fw-600">Palavras-chave</h5>
-      <small class="text-muted">Gerencie o que você quer monitorar no DOERJ</small>
+      <h5 class="mb-0 fw-600">Monitoramentos</h5>
+      <small class="text-muted">Combine secoes e palavras-chave para monitorar o DOERJ</small>
     </div>
     <button class="btn btn-primary btn-sm ms-auto" id="btnAdicionar">
-      <i class="bi bi-plus-lg me-1"></i> Nova palavra-chave
+      <i class="bi bi-plus-lg me-1"></i> Novo monitoramento
     </button>
   </div>
 
   <div class="page-content">
+    <div class="alert alert-info d-flex align-items-start gap-2">
+      <i class="bi bi-bell-fill mt-1"></i>
+      <div>
+        No primeiro scan, o sistema apenas marca o que ja existe como visto.
+        Os alertas sao disparados somente para publicacoes novas que aparecerem depois disso.
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-body p-0">
         <% if (!keywords.length) { %>
           <div class="empty-state">
             <i class="bi bi-key"></i>
-            <p>Você ainda não tem palavras-chave cadastradas.</p>
+            <p>Voce ainda nao tem monitoramentos cadastrados.</p>
             <button class="btn btn-primary btn-sm" id="btnAdicionarEmpty">
               <i class="bi bi-plus-lg me-1"></i> Adicionar agora
             </button>
@@ -29,19 +37,41 @@
             <table class="table table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th>Palavra-chave</th>
+                  <th>Palavra ou frase</th>
+                  <th>Escopo</th>
                   <th>Canais</th>
                   <th>Status</th>
-                  <th>Último scan</th>
+                  <th>Ultimo scan</th>
                   <th>IDs monitorados</th>
-                  <th class="text-end">Ações</th>
+                  <th class="text-end">Acoes</th>
                 </tr>
               </thead>
               <tbody>
                 <% keywords.forEach(kw => { %>
+                  <% const encodedRule = encodeURIComponent(JSON.stringify({
+                    id: kw._id,
+                    text: kw.text || '',
+                    sections: kw.sections || [],
+                    emailEnabled: kw.emailEnabled,
+                    whatsappEnabled: kw.whatsappEnabled
+                  })); %>
+                  <% const scopeText = describeSectionScope(kw.sections, { compact: true }); %>
+                  <% const ruleLabel = describeMonitorRule(kw, { compact: true }); %>
                   <tr id="row-<%= kw._id %>">
                     <td>
-                      <span class="fw-500"><%= kw.text %></span>
+                      <% if (kw.text) { %>
+                        <div class="fw-500"><%= kw.text %></div>
+                        <div class="text-muted small">Filtro por palavra ou frase dentro do escopo.</div>
+                      <% } else { %>
+                        <div class="fw-500">Todas as publicacoes do escopo</div>
+                        <div class="text-muted small">Sem palavra especifica.</div>
+                      <% } %>
+                    </td>
+                    <td>
+                      <span class="badge <%= kw.sections && kw.sections.length ? 'bg-secondary-soft text-secondary' : 'bg-primary-soft text-primary' %>"><%= scopeText %></span>
+                      <% if (kw.sections && kw.sections.length > 1) { %>
+                        <div class="text-muted small mt-1"><%= kw.sections.length %> secoes selecionadas</div>
+                      <% } %>
                     </td>
                     <td>
                       <% if (kw.emailEnabled) { %>
@@ -64,9 +94,9 @@
                       <% if (kw.lastChecked) { %>
                         <span style="font-size:0.85rem;color:#64748b"><%= new Date(kw.lastChecked).toLocaleString('pt-BR') %></span>
                       <% } else if (!kw.firstScanDone) { %>
-                        <span class="badge bg-warning-soft text-warning">Aguardando 1º scan</span>
+                        <span class="badge bg-warning-soft text-warning">Aguardando 1o scan</span>
                       <% } else { %>
-                        <span class="text-muted" style="font-size:0.85rem">—</span>
+                        <span class="text-muted" style="font-size:0.85rem">-</span>
                       <% } %>
                     </td>
                     <td>
@@ -74,13 +104,29 @@
                     </td>
                     <td class="text-end">
                       <div class="d-flex gap-2 justify-content-end">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="editarKeyword('<%= kw._id %>', '<%= kw.text.replace(/'/g, `\\'`) %>', <%= kw.emailEnabled %>, <%= kw.whatsappEnabled %>)" title="Editar">
+                        <button
+                          class="btn btn-sm btn-outline-secondary"
+                          data-rule="<%= encodedRule %>"
+                          onclick="editarKeyword(this)"
+                          title="Editar"
+                        >
                           <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-sm <%= kw.active ? 'btn-outline-warning' : 'btn-outline-success' %>" id="btnToggle-<%= kw._id %>" onclick="toggleKeyword('<%= kw._id %>')" title="<%= kw.active ? 'Pausar' : 'Ativar' %>">
+                        <button
+                          class="btn btn-sm <%= kw.active ? 'btn-outline-warning' : 'btn-outline-success' %>"
+                          id="btnToggle-<%= kw._id %>"
+                          onclick="toggleKeyword('<%= kw._id %>')"
+                          title="<%= kw.active ? 'Pausar' : 'Ativar' %>"
+                        >
                           <i class="bi bi-<%= kw.active ? 'pause-fill' : 'play-fill' %>"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deletarKeyword('<%= kw._id %>', '<%= kw.text.replace(/'/g, `\\'`) %>')" title="Deletar">
+                        <button
+                          class="btn btn-sm btn-outline-danger"
+                          data-id="<%= kw._id %>"
+                          data-label="<%= ruleLabel %>"
+                          onclick="deletarKeyword(this)"
+                          title="Deletar"
+                        >
                           <i class="bi bi-trash"></i>
                         </button>
                       </div>
@@ -98,54 +144,167 @@
 
 <%- include('partials/scripts') %>
 <script>
-function abrirModal(id = null, text = '', email = true, whatsapp = false) {
+const sectionOptions = <%- JSON.stringify(sectionOptions) %>;
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderSectionPicker(selectedSections = []) {
+  const selected = Array.isArray(selectedSections) ? selectedSections : [];
+  const allChecked = selected.length === 0;
+
+  return `
+    <div class="section-picker mt-2">
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="swal-all-sections" ${allChecked ? 'checked' : ''}>
+        <label class="form-check-label fw-500" for="swal-all-sections">Todo o DOERJ</label>
+      </div>
+      <div class="section-checkbox-list ${allChecked ? 'is-disabled' : ''}" id="swal-sections-wrap">
+        ${sectionOptions.map(option => `
+          <label class="section-check">
+            <input
+              class="form-check-input swal-section-option"
+              type="checkbox"
+              value="${escapeHtml(option.id)}"
+              ${selected.includes(option.id) ? 'checked' : ''}
+              ${allChecked ? 'disabled' : ''}
+            >
+            <span>${escapeHtml(option.label)}</span>
+          </label>
+        `).join('')}
+      </div>
+      <div class="form-text mt-2">Marque uma ou mais secoes. Se "Todo o DOERJ" estiver ativo, as secoes especificas sao ignoradas.</div>
+    </div>
+  `;
+}
+
+function syncSectionPickerState(popup) {
+  const allCheckbox = popup.querySelector('#swal-all-sections');
+  const sectionInputs = [...popup.querySelectorAll('.swal-section-option')];
+  const wrap = popup.querySelector('#swal-sections-wrap');
+
+  if (allCheckbox.checked) {
+    sectionInputs.forEach(input => {
+      input.checked = false;
+      input.disabled = true;
+    });
+    wrap.classList.add('is-disabled');
+    return;
+  }
+
+  sectionInputs.forEach(input => { input.disabled = false; });
+  wrap.classList.remove('is-disabled');
+}
+
+function bindSectionPickerEvents(popup) {
+  const allCheckbox = popup.querySelector('#swal-all-sections');
+  const sectionInputs = [...popup.querySelectorAll('.swal-section-option')];
+
+  allCheckbox.addEventListener('change', () => syncSectionPickerState(popup));
+
+  sectionInputs.forEach(input => {
+    input.addEventListener('change', () => {
+      const anyChecked = sectionInputs.some(item => item.checked);
+      allCheckbox.checked = !anyChecked;
+      syncSectionPickerState(popup);
+    });
+  });
+}
+
+function abrirModal(rule = {}) {
+  const state = {
+    id: rule.id || null,
+    text: rule.text || '',
+    sections: Array.isArray(rule.sections) ? rule.sections : [],
+    emailEnabled: typeof rule.emailEnabled === 'boolean' ? rule.emailEnabled : true,
+    whatsappEnabled: typeof rule.whatsappEnabled === 'boolean' ? rule.whatsappEnabled : false
+  };
+
   Swal.fire({
-    title: id ? 'Editar palavra-chave' : 'Nova palavra-chave',
+    title: state.id ? 'Editar monitoramento' : 'Novo monitoramento',
     html: `
       <div class="text-start">
-        <label class="form-label fw-500 mb-1">Palavra ou frase a monitorar</label>
-        <input id="swal-text" class="swal2-input mt-0 mb-3" placeholder="Ex: nome da empresa, CPF, cargo..." value="${text}" style="margin:0 0 12px 0;width:100%">
-        <label class="form-label fw-500 mb-2">Canais de alerta</label>
+        <label class="form-label fw-500 mb-1">Palavra ou frase <span class="text-muted">(opcional se houver secao)</span></label>
+        <input
+          id="swal-text"
+          class="swal2-input mt-0 mb-2"
+          placeholder="Ex: contrato, auditoria, portaria..."
+          value="${escapeHtml(state.text)}"
+          style="margin:0;width:100%"
+        >
+        <div class="form-text mb-3">Se deixar em branco, o sistema monitora tudo que aparecer nas secoes escolhidas.</div>
+        <label class="form-label fw-500 mb-1">Escopo do monitoramento</label>
+        ${renderSectionPicker(state.sections)}
+        <label class="form-label fw-500 mb-2 mt-3">Canais de alerta</label>
         <div class="d-flex gap-3">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="swal-email" ${email ? 'checked' : ''}>
+            <input class="form-check-input" type="checkbox" id="swal-email" ${state.emailEnabled ? 'checked' : ''}>
             <label class="form-check-label" for="swal-email"><i class="bi bi-envelope-fill text-info me-1"></i>Email</label>
           </div>
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="swal-zap" ${whatsapp ? 'checked' : ''}>
+            <input class="form-check-input" type="checkbox" id="swal-zap" ${state.whatsappEnabled ? 'checked' : ''}>
             <label class="form-check-label" for="swal-zap"><i class="bi bi-whatsapp text-success me-1"></i>WhatsApp</label>
           </div>
         </div>
       </div>
     `,
     showCancelButton: true,
-    confirmButtonText: id ? 'Salvar alterações' : '<i class="bi bi-plus-lg me-1"></i> Adicionar',
+    confirmButtonText: state.id ? 'Salvar alteracoes' : '<i class="bi bi-plus-lg me-1"></i> Adicionar',
     cancelButtonText: 'Cancelar',
     confirmButtonColor: '#2563eb',
     focusConfirm: false,
     customClass: { popup: 'swal-wide' },
+    didOpen: () => bindSectionPickerEvents(Swal.getPopup()),
     preConfirm: () => {
-      const t = document.getElementById('swal-text').value.trim();
-      if (!t) { Swal.showValidationMessage('Digite a palavra-chave'); return false; }
+      const popup = Swal.getPopup();
+      const text = popup.querySelector('#swal-text').value.trim();
+      const allSelected = popup.querySelector('#swal-all-sections').checked;
+      const sections = allSelected
+        ? []
+        : [...popup.querySelectorAll('.swal-section-option:checked')].map(input => input.value);
+
+      if (!text && !sections.length) {
+        Swal.showValidationMessage('Digite uma palavra-chave ou selecione ao menos uma secao especifica.');
+        return false;
+      }
+
       return {
-        text: t,
-        emailEnabled: document.getElementById('swal-email').checked,
-        whatsappEnabled: document.getElementById('swal-zap').checked
+        text,
+        sections,
+        emailEnabled: popup.querySelector('#swal-email').checked,
+        whatsappEnabled: popup.querySelector('#swal-zap').checked
       };
     }
   }).then(async result => {
     if (!result.isConfirmed) return;
+
     const body = result.value;
-    const method = id ? 'PUT' : 'POST';
-    const url = id ? `/keywords/${id}` : '/keywords';
+    const method = state.id ? 'PUT' : 'POST';
+    const url = state.id ? `/keywords/${state.id}` : '/keywords';
+
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
+
     const data = await res.json();
     if (data.ok) {
-      Swal.fire({ icon: 'success', title: id ? 'Salvo!' : 'Adicionado!', text: id ? 'Palavra-chave atualizada.' : 'Monitoramento iniciará no próximo ciclo.', timer: 2000, showConfirmButton: false });
+      Swal.fire({
+        icon: 'success',
+        title: state.id ? 'Salvo!' : 'Adicionado!',
+        text: state.id
+          ? 'Monitoramento atualizado. O proximo ciclo vai rearmar a regra.'
+          : 'Monitoramento criado. O primeiro ciclo apenas arma a regra para novas publicacoes.',
+        timer: 2000,
+        showConfirmButton: false
+      });
       setTimeout(() => location.reload(), 1800);
     } else {
       Swal.fire({ icon: 'error', title: 'Erro', text: data.erro });
@@ -157,8 +316,9 @@ document.getElementById('btnAdicionar').addEventListener('click', () => abrirMod
 const btnEmpty = document.getElementById('btnAdicionarEmpty');
 if (btnEmpty) btnEmpty.addEventListener('click', () => abrirModal());
 
-function editarKeyword(id, text, email, whatsapp) {
-  abrirModal(id, text, email, whatsapp);
+function editarKeyword(button) {
+  const rule = JSON.parse(decodeURIComponent(button.dataset.rule));
+  abrirModal(rule);
 }
 
 async function toggleKeyword(id) {
@@ -180,15 +340,18 @@ async function toggleKeyword(id) {
       btn.innerHTML = '<i class="bi bi-play-fill"></i>';
       btn.title = 'Ativar';
     }
-    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-    Toast.fire({ icon: 'success', title: data.active ? 'Monitoramento ativado' : 'Monitoramento pausado' });
+    const toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+    toast.fire({ icon: 'success', title: data.active ? 'Monitoramento ativado' : 'Monitoramento pausado' });
   }
 }
 
-function deletarKeyword(id, texto) {
+function deletarKeyword(button) {
+  const id = button.dataset.id;
+  const label = button.dataset.label;
+
   Swal.fire({
-    title: 'Deletar palavra-chave?',
-    html: `A palavra <strong>"${texto}"</strong> e todo o histórico serão removidos.`,
+    title: 'Deletar monitoramento?',
+    html: `A regra <strong>"${escapeHtml(label)}"</strong> e todo o historico serao removidos.`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonText: 'Sim, deletar',
@@ -200,8 +363,8 @@ function deletarKeyword(id, texto) {
     const data = await res.json();
     if (data.ok) {
       document.getElementById(`row-${id}`).remove();
-      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-      Toast.fire({ icon: 'success', title: 'Deletada com sucesso' });
+      const toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+      toast.fire({ icon: 'success', title: 'Deletado com sucesso' });
     }
   });
 }
