@@ -134,14 +134,25 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <% resultados.forEach(item => { %>
-                    <tr>
+                  <% resultados.forEach((item, index) => { %>
+                    <tr
+                      class="clickable-row search-result-row"
+                      tabindex="0"
+                      title="Clique para abrir o resumo desta materia"
+                      data-id="<%= item.idMateria || '-' %>"
+                      data-data="<%= item.dataPublicacao || '-' %>"
+                      data-pagina="<%= item.pagina || '-' %>"
+                      data-jornal="<%= encodeURIComponent(item.jornal || '-') %>"
+                      data-tipo="<%= encodeURIComponent(item.tipo || '-') %>"
+                      data-resumo="<%= encodeURIComponent(item.resumo || '-') %>"
+                      data-source-url="<%= encodeURIComponent(item.sourceUrl || '') %>"
+                    >
                       <td><span class="badge bg-secondary-soft text-secondary"><%= item.dataPublicacao || '-' %></span></td>
                       <td><strong><%= item.idMateria || '-' %></strong></td>
                       <td><%= item.pagina || '-' %></td>
                       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= item.jornal || '-' %></td>
                       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= item.tipo || '-' %></td>
-                      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= item.resumo %>"><%= item.resumo || '-' %></td>
+                      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= item.resumo %>"><%- item.highlightedResumo || '-' %></td>
                       <td>
                         <% if (item.sourceUrl) { %>
                           <a
@@ -150,6 +161,7 @@
                             rel="noopener noreferrer"
                             class="btn btn-sm btn-outline-primary"
                             title="Abrir materia no DOERJ"
+                            data-row-ignore="true"
                           >
                             <i class="bi bi-box-arrow-up-right"></i>
                           </a>
@@ -169,11 +181,81 @@
   </div>
 </div>
 
+<div class="modal fade" id="searchResultModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Resumo da materia</h5>
+          <small class="text-muted">Clique no botao azul para abrir o DOERJ oficial</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert-meta-grid mb-4">
+          <div>
+            <small class="text-muted d-block">Data do DO</small>
+            <strong id="search-modal-data">-</strong>
+          </div>
+          <div>
+            <small class="text-muted d-block">ID da materia</small>
+            <strong id="search-modal-id">-</strong>
+          </div>
+          <div>
+            <small class="text-muted d-block">Pagina</small>
+            <strong id="search-modal-pagina">-</strong>
+          </div>
+          <div>
+            <small class="text-muted d-block">Jornal</small>
+            <strong id="search-modal-jornal">-</strong>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <small class="text-muted d-block">Tipo</small>
+          <strong id="search-modal-tipo">-</strong>
+        </div>
+
+        <% if (highlightTerms.length) { %>
+          <div class="mb-3">
+            <small class="text-muted d-block mb-2">Destaques aplicados</small>
+            <div class="d-flex flex-wrap gap-2">
+              <% highlightTerms.forEach(term => { %>
+                <span class="badge bg-warning-soft text-warning border border-warning-subtle"><%= term %></span>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
+
+        <% if (ignoredShortKeyword) { %>
+          <div class="alert alert-warning">
+            O termo "<strong><%= ignoredShortKeyword %></strong>" e muito curto para destacar sem pintar o texto inteiro.
+            Por isso, destaquei a secao monitorada.
+          </div>
+        <% } %>
+
+        <div>
+          <small class="text-muted d-block mb-2">Resumo encontrado</small>
+          <div class="highlighted-reading" id="search-modal-resumo">-</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-outline-secondary disabled" id="search-modal-open" target="_blank" rel="noopener noreferrer">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Abrir no DOERJ
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <%- include('partials/scripts') %>
 <script>
 const allSectionsCheckbox = document.getElementById('all-sections');
 const sectionInputs = [...document.querySelectorAll('.section-option')];
 const sectionsWrap = document.getElementById('section-options');
+const highlightTerms = <%- JSON.stringify(highlightTerms || []) %>;
+const searchResultModalElement = document.getElementById('searchResultModal');
+const searchResultModal = searchResultModalElement ? new bootstrap.Modal(searchResultModalElement) : null;
 
 function syncSectionState() {
   if (allSectionsCheckbox.checked) {
@@ -199,6 +281,85 @@ sectionInputs.forEach(input => {
 });
 
 syncSectionState();
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightText(text, terms) {
+  const source = String(text || '');
+  if (!source) return '-';
+  if (!terms.length) return escapeHtml(source);
+
+  const pattern = new RegExp(`(${terms.map(escapeRegex).join('|')})`, 'gi');
+  let highlighted = '';
+  let lastIndex = 0;
+
+  for (const match of source.matchAll(pattern)) {
+    const index = typeof match.index === 'number' ? match.index : -1;
+    if (index < 0) continue;
+
+    highlighted += escapeHtml(source.slice(lastIndex, index));
+    highlighted += `<mark class="term-highlight">${escapeHtml(match[0])}</mark>`;
+    lastIndex = index + match[0].length;
+  }
+
+  highlighted += escapeHtml(source.slice(lastIndex));
+  return highlighted;
+}
+
+document.querySelectorAll('.search-result-row').forEach(row => {
+  function shouldIgnore(target) {
+    return !!target.closest('a, button, [data-row-ignore="true"]');
+  }
+
+  function openResumo() {
+    if (!searchResultModal) return;
+
+    const sourceUrl = decodeURIComponent(row.dataset.sourceUrl || '');
+    const resumo = decodeURIComponent(row.dataset.resumo || '');
+
+    document.getElementById('search-modal-data').textContent = row.dataset.data || '-';
+    document.getElementById('search-modal-id').textContent = row.dataset.id || '-';
+    document.getElementById('search-modal-pagina').textContent = row.dataset.pagina || '-';
+    document.getElementById('search-modal-jornal').textContent = decodeURIComponent(row.dataset.jornal || '-') || '-';
+    document.getElementById('search-modal-tipo').textContent = decodeURIComponent(row.dataset.tipo || '-') || '-';
+    document.getElementById('search-modal-resumo').innerHTML = highlightText(resumo, highlightTerms);
+
+    const openButton = document.getElementById('search-modal-open');
+    if (sourceUrl) {
+      openButton.href = sourceUrl;
+      openButton.classList.remove('disabled');
+      openButton.setAttribute('aria-disabled', 'false');
+    } else {
+      openButton.href = '#';
+      openButton.classList.add('disabled');
+      openButton.setAttribute('aria-disabled', 'true');
+    }
+
+    searchResultModal.show();
+  }
+
+  row.addEventListener('click', event => {
+    if (shouldIgnore(event.target)) return;
+    openResumo();
+  });
+
+  row.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openResumo();
+  });
+});
 
 document.getElementById('formBusca').addEventListener('submit', function (event) {
   const keyword = this.querySelector('input[name="keyword"]').value.trim();

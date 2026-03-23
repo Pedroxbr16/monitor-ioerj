@@ -3,6 +3,7 @@ const router = express.Router();
 
 const requireAuth = require('../middleware/requireAuth');
 const { searchOccurrences } = require('../services/occurrenceQuery');
+const { buildHighlightConfig, highlightText } = require('../src/highlight');
 const {
   SECTION_OPTIONS,
   normalizeSectionIds,
@@ -21,7 +22,9 @@ function renderSearch(res, payload = {}) {
       sections: []
     },
     totalBruto: 0,
-    erro: null
+    erro: null,
+    highlightTerms: [],
+    ignoredShortKeyword: ''
   };
 
   const mergedPayload = {
@@ -48,6 +51,7 @@ router.get('/', (req, res) => {
 router.post('/', async (req, res) => {
   const { keyword, dataInicio, dataFim } = req.body;
   const sections = normalizeSectionIds(req.body.sections);
+  const highlightConfig = buildHighlightConfig({ text: keyword, sections });
 
   try {
     const { results, totalRaw } = await searchOccurrences({
@@ -57,10 +61,17 @@ router.post('/', async (req, res) => {
       dataFim: dataFim || null
     });
 
+    const resultados = results.map(item => ({
+      ...item,
+      highlightedResumo: highlightText(item.resumo || '', highlightConfig.terms)
+    }));
+
     renderSearch(res, {
-      resultados: results,
+      resultados,
       totalBruto: totalRaw,
-      params: { keyword, dataInicio, dataFim, sections }
+      params: { keyword, dataInicio, dataFim, sections },
+      highlightTerms: highlightConfig.terms,
+      ignoredShortKeyword: highlightConfig.ignoredShortKeyword
     });
   } catch (err) {
     const erro = err.message === 'informe-palavra-ou-secao'
@@ -71,7 +82,9 @@ router.post('/', async (req, res) => {
       resultados: [],
       totalBruto: 0,
       erro,
-      params: { keyword, dataInicio, dataFim, sections }
+      params: { keyword, dataInicio, dataFim, sections },
+      highlightTerms: highlightConfig.terms,
+      ignoredShortKeyword: highlightConfig.ignoredShortKeyword
     });
   }
 });
