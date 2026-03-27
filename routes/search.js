@@ -63,6 +63,9 @@ router.post('/', async (req, res) => {
 
     const resultados = results.map(item => ({
       ...item,
+      archiveViewerUrl: item.archiveEditionId
+        ? `/doerj/editions/${item.archiveEditionId}/viewer${item.archivePage ? `?page=${item.archivePage}` : ''}`
+        : '',
       highlightedResumo: highlightText(item.resumo || '', highlightConfig.terms)
     }));
 

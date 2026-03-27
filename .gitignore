@@ -1,3 +1,7 @@
 .env
 node_modules/
 debug/
+dados/doerj/
+dados/backfill-*.log
+dados/*.log
+temp-login-cookie.txt

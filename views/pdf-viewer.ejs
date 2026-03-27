@@ -1,0 +1,541 @@
+<%- include('partials/head', { title: 'Visualizador de PDF' }) %>
+<body>
+<%- include('partials/sidebar', { page: 'search' }) %>
+
+<div class="main-content">
+  <div class="top-bar">
+    <div>
+      <h5 class="mb-0 fw-600">Visualizador do DOERJ</h5>
+      <small class="text-muted">
+        <%= edition.dateKey %> | <%= edition.partLabel %>
+      </small>
+    </div>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <a href="/search" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Voltar para busca
+      </a>
+      <a href="/doerj/editions/<%= edition._id %>/file" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-box-arrow-up-right me-1"></i>Abrir PDF original
+      </a>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="card pdf-viewer-card">
+      <div class="card-body pdf-viewer-body">
+        <aside class="pdf-tools-panel">
+          <h6 class="mb-3 fw-600">Marcacao</h6>
+
+          <div class="mb-3">
+            <small class="text-muted d-block mb-2">Navegacao</small>
+            <div class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-prev-page">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+              <input type="number" min="1" class="form-control form-control-sm" id="page-number-input" value="<%= initialPage %>">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-next-page">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+            <small class="text-muted" id="page-counter">Pagina <%= initialPage %> de <%= edition.totalPages || '-' %></small>
+          </div>
+
+          <div class="mb-3">
+            <small class="text-muted d-block mb-2">Zoom</small>
+            <div class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-zoom-out">
+                <i class="bi bi-dash-lg"></i>
+              </button>
+              <span class="small fw-500" id="zoom-label">135%</span>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-zoom-in">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <small class="text-muted d-block mb-2">Como marcar</small>
+            <ol class="small ps-3 mb-2">
+              <li>Selecione um texto no PDF</li>
+              <li>Clique em "Marcar selecao"</li>
+              <li>Repita em outras paginas se quiser</li>
+            </ol>
+            <button type="button" class="btn btn-warning w-100 mb-2" id="btn-add-highlight">
+              <i class="bi bi-highlighter me-1"></i>Marcar selecao
+            </button>
+            <button type="button" class="btn btn-outline-danger w-100" id="btn-clear-page-highlights">
+              <i class="bi bi-eraser me-1"></i>Limpar pagina atual
+            </button>
+          </div>
+
+          <hr>
+
+          <div class="mb-3">
+            <small class="text-muted d-block mb-2">Exportar</small>
+
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="radio" name="exportMode" id="mode-selected" value="selected" checked>
+              <label class="form-check-label small" for="mode-selected">
+                Apenas paginas com marcacao
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="exportMode" id="mode-full" value="full">
+              <label class="form-check-label small" for="mode-full">
+                PDF completo com marcacoes
+              </label>
+            </div>
+
+            <button type="button" class="btn btn-primary w-100" id="btn-download-highlighted">
+              <i class="bi bi-download me-1"></i>Baixar PDF marcado
+            </button>
+          </div>
+        </aside>
+
+        <section class="pdf-canvas-panel">
+          <div class="pdf-stage-wrap">
+            <div id="pdf-stage">
+              <canvas id="pdf-canvas"></canvas>
+              <div id="pdf-text-layer"></div>
+              <div id="pdf-highlight-layer"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="pdf-marks-panel">
+          <h6 class="mb-3 fw-600">Marcacoes salvas</h6>
+          <div id="highlights-list" class="pdf-highlights-list"></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/scripts') %>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+const editionId = '<%= edition._id %>';
+const totalPagesHint = Number.parseInt('<%= edition.totalPages || 0 %>', 10) || 0;
+const initialPage = Number.parseInt('<%= initialPage %>', 10) || 1;
+const pdfUrl = `/doerj/editions/${editionId}/file`;
+const exportUrl = `/doerj/editions/${editionId}/export-highlighted`;
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+const state = {
+  pdfDocument: null,
+  pageNumber: initialPage,
+  scale: 1.35,
+  highlightsByPage: new Map(),
+  currentViewport: null,
+  renderTask: null
+};
+
+const elements = {
+  canvas: document.getElementById('pdf-canvas'),
+  stage: document.getElementById('pdf-stage'),
+  textLayer: document.getElementById('pdf-text-layer'),
+  highlightLayer: document.getElementById('pdf-highlight-layer'),
+  pageCounter: document.getElementById('page-counter'),
+  pageInput: document.getElementById('page-number-input'),
+  zoomLabel: document.getElementById('zoom-label'),
+  highlightsList: document.getElementById('highlights-list'),
+  btnPrev: document.getElementById('btn-prev-page'),
+  btnNext: document.getElementById('btn-next-page'),
+  btnZoomIn: document.getElementById('btn-zoom-in'),
+  btnZoomOut: document.getElementById('btn-zoom-out'),
+  btnAddHighlight: document.getElementById('btn-add-highlight'),
+  btnClearPageHighlights: document.getElementById('btn-clear-page-highlights'),
+  btnDownloadHighlighted: document.getElementById('btn-download-highlighted')
+};
+
+function getTotalPages() {
+  return state.pdfDocument ? state.pdfDocument.numPages : totalPagesHint;
+}
+
+function clampPage(page) {
+  const total = Math.max(1, getTotalPages());
+  return Math.min(Math.max(Number.parseInt(String(page || ''), 10) || 1, 1), total);
+}
+
+function updatePageCounter() {
+  const total = getTotalPages();
+  elements.pageCounter.textContent = `Pagina ${state.pageNumber} de ${total}`;
+  elements.pageInput.value = state.pageNumber;
+}
+
+function updateZoomLabel() {
+  elements.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+}
+
+function flattenHighlights() {
+  const flattened = [];
+  for (const [page, marks] of state.highlightsByPage.entries()) {
+    for (const mark of marks) {
+      flattened.push({
+        page,
+        id: mark.id,
+        text: mark.text,
+        rects: mark.rects
+      });
+    }
+  }
+
+  return flattened.sort((a, b) => a.page - b.page);
+}
+
+function renderHighlightsList() {
+  const allMarks = flattenHighlights();
+
+  if (!allMarks.length) {
+    elements.highlightsList.innerHTML = '<div class="text-muted small">Nenhuma marcacao ainda.</div>';
+    return;
+  }
+
+  elements.highlightsList.innerHTML = allMarks.map((mark, index) => {
+    const preview = String(mark.text || '').trim() || '(sem texto)';
+    const shortPreview = preview.length > 120 ? `${preview.slice(0, 117)}...` : preview;
+
+    return `
+      <div class="pdf-mark-item">
+        <div class="pdf-mark-header">
+          <span class="badge bg-warning-soft text-warning">#${index + 1}</span>
+          <span class="small text-muted">Pag. ${mark.page}</span>
+          <button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-mark-id="${mark.id}" data-remove-mark-page="${mark.page}" title="Remover">
+            <i class="bi bi-x-circle"></i>
+          </button>
+        </div>
+        <div class="small">${shortPreview}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function removeMark(page, markId) {
+  const marks = state.highlightsByPage.get(page) || [];
+  const filtered = marks.filter(mark => mark.id !== markId);
+
+  if (!filtered.length) {
+    state.highlightsByPage.delete(page);
+  } else {
+    state.highlightsByPage.set(page, filtered);
+  }
+
+  renderHighlightsList();
+  paintHighlightLayer();
+}
+
+elements.highlightsList.addEventListener('click', event => {
+  const trigger = event.target.closest('[data-remove-mark-id]');
+  if (!trigger) return;
+
+  const page = Number.parseInt(trigger.dataset.removeMarkPage, 10);
+  const markId = trigger.dataset.removeMarkId;
+
+  if (!page || !markId) return;
+  removeMark(page, markId);
+});
+
+function paintHighlightLayer() {
+  elements.highlightLayer.innerHTML = '';
+
+  const marks = state.highlightsByPage.get(state.pageNumber) || [];
+  if (!marks.length || !state.currentViewport) {
+    return;
+  }
+
+  for (const mark of marks) {
+    for (const rect of mark.rects) {
+      const viewportRect = state.currentViewport.convertToViewportRectangle([
+        rect.x1,
+        rect.y1,
+        rect.x2,
+        rect.y2
+      ]);
+
+      const left = Math.min(viewportRect[0], viewportRect[2]);
+      const top = Math.min(viewportRect[1], viewportRect[3]);
+      const width = Math.abs(viewportRect[2] - viewportRect[0]);
+      const height = Math.abs(viewportRect[3] - viewportRect[1]);
+
+      if (width < 1 || height < 1) {
+        continue;
+      }
+
+      const box = document.createElement('div');
+      box.className = 'pdf-highlight-box';
+      box.style.left = `${left}px`;
+      box.style.top = `${top}px`;
+      box.style.width = `${width}px`;
+      box.style.height = `${height}px`;
+      elements.highlightLayer.appendChild(box);
+    }
+  }
+}
+
+async function renderPage(pageNumber) {
+  if (!state.pdfDocument) return;
+
+  const safePage = clampPage(pageNumber);
+  state.pageNumber = safePage;
+  updatePageCounter();
+  updateZoomLabel();
+
+  if (state.renderTask) {
+    try {
+      state.renderTask.cancel();
+    } catch (err) {
+      // noop
+    }
+  }
+
+  const page = await state.pdfDocument.getPage(safePage);
+  const viewport = page.getViewport({ scale: state.scale });
+  state.currentViewport = viewport;
+
+  const context = elements.canvas.getContext('2d');
+  const outputScale = window.devicePixelRatio || 1;
+
+  elements.canvas.width = Math.floor(viewport.width * outputScale);
+  elements.canvas.height = Math.floor(viewport.height * outputScale);
+  elements.canvas.style.width = `${viewport.width}px`;
+  elements.canvas.style.height = `${viewport.height}px`;
+
+  elements.stage.style.width = `${viewport.width}px`;
+  elements.stage.style.height = `${viewport.height}px`;
+
+  context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+
+  state.renderTask = page.render({
+    canvasContext: context,
+    viewport
+  });
+  await state.renderTask.promise;
+
+  const textContent = await page.getTextContent();
+  elements.textLayer.innerHTML = '';
+  elements.textLayer.style.width = `${viewport.width}px`;
+  elements.textLayer.style.height = `${viewport.height}px`;
+  elements.highlightLayer.style.width = `${viewport.width}px`;
+  elements.highlightLayer.style.height = `${viewport.height}px`;
+
+  const textLayerTask = pdfjsLib.renderTextLayer({
+    textContent,
+    container: elements.textLayer,
+    viewport,
+    textDivs: []
+  });
+
+  if (textLayerTask && textLayerTask.promise) {
+    await textLayerTask.promise;
+  }
+
+  paintHighlightLayer();
+}
+
+function getSelectionRectsFromCurrentPage() {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || !selection.rangeCount) {
+    return { text: '', rects: [] };
+  }
+
+  const range = selection.getRangeAt(0);
+  const selectedText = selection.toString().trim();
+  if (!selectedText) {
+    return { text: '', rects: [] };
+  }
+
+  const textLayerRect = elements.textLayer.getBoundingClientRect();
+  const clientRects = Array.from(range.getClientRects());
+  const rects = [];
+
+  for (const clientRect of clientRects) {
+    if (!clientRect || clientRect.width < 1 || clientRect.height < 1) {
+      continue;
+    }
+
+    const outside =
+      clientRect.right < textLayerRect.left ||
+      clientRect.left > textLayerRect.right ||
+      clientRect.bottom < textLayerRect.top ||
+      clientRect.top > textLayerRect.bottom;
+
+    if (outside) {
+      continue;
+    }
+
+    const left = Math.max(clientRect.left, textLayerRect.left) - textLayerRect.left;
+    const top = Math.max(clientRect.top, textLayerRect.top) - textLayerRect.top;
+    const right = Math.min(clientRect.right, textLayerRect.right) - textLayerRect.left;
+    const bottom = Math.min(clientRect.bottom, textLayerRect.bottom) - textLayerRect.top;
+
+    const [x1, y1] = state.currentViewport.convertToPdfPoint(left, top);
+    const [x2, y2] = state.currentViewport.convertToPdfPoint(right, bottom);
+    rects.push({ x1, y1, x2, y2 });
+  }
+
+  return { text: selectedText, rects };
+}
+
+function addHighlightFromSelection() {
+  if (!state.currentViewport) return;
+
+  const extracted = getSelectionRectsFromCurrentPage();
+  if (!extracted.rects.length) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Nada selecionado',
+      text: 'Selecione um trecho do texto no PDF antes de marcar.'
+    });
+    return;
+  }
+
+  const pageMarks = state.highlightsByPage.get(state.pageNumber) || [];
+  const markId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  pageMarks.push({
+    id: markId,
+    text: extracted.text,
+    rects: extracted.rects
+  });
+
+  state.highlightsByPage.set(state.pageNumber, pageMarks);
+  window.getSelection()?.removeAllRanges();
+  renderHighlightsList();
+  paintHighlightLayer();
+}
+
+function clearCurrentPageHighlights() {
+  if (!state.highlightsByPage.has(state.pageNumber)) {
+    return;
+  }
+
+  state.highlightsByPage.delete(state.pageNumber);
+  renderHighlightsList();
+  paintHighlightLayer();
+}
+
+async function downloadHighlightedPdf() {
+  const highlights = flattenHighlights();
+  if (!highlights.length) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Sem marcacoes',
+      text: 'Adicione pelo menos um destaque antes de exportar.'
+    });
+    return;
+  }
+
+  const modeInput = document.querySelector('input[name="exportMode"]:checked');
+  const mode = modeInput ? modeInput.value : 'selected';
+
+  const payload = {
+    mode,
+    highlights: highlights.map(item => ({
+      page: item.page,
+      rects: item.rects
+    }))
+  };
+
+  elements.btnDownloadHighlighted.disabled = true;
+  elements.btnDownloadHighlighted.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Gerando...';
+
+  try {
+    const response = await fetch(exportUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Falha ao gerar o PDF marcado.';
+      try {
+        const payloadError = await response.json();
+        if (payloadError?.error) {
+          errorMessage = payloadError.error;
+        }
+      } catch (err) {
+        // noop
+      }
+      throw new Error(errorMessage);
+    }
+
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const fileMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+    const fileName = fileMatch ? fileMatch[1] : `doerj-${editionId}-marcado.pdf`;
+
+    const blobUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Erro na exportacao',
+      text: err.message
+    });
+  } finally {
+    elements.btnDownloadHighlighted.disabled = false;
+    elements.btnDownloadHighlighted.innerHTML = '<i class="bi bi-download me-1"></i>Baixar PDF marcado';
+  }
+}
+
+elements.btnPrev.addEventListener('click', () => renderPage(state.pageNumber - 1));
+elements.btnNext.addEventListener('click', () => renderPage(state.pageNumber + 1));
+elements.btnZoomIn.addEventListener('click', () => {
+  state.scale = Math.min(state.scale + 0.15, 3);
+  renderPage(state.pageNumber);
+});
+elements.btnZoomOut.addEventListener('click', () => {
+  state.scale = Math.max(state.scale - 0.15, 0.7);
+  renderPage(state.pageNumber);
+});
+elements.pageInput.addEventListener('change', () => {
+  renderPage(elements.pageInput.value);
+});
+elements.btnAddHighlight.addEventListener('click', addHighlightFromSelection);
+elements.btnClearPageHighlights.addEventListener('click', clearCurrentPageHighlights);
+elements.btnDownloadHighlighted.addEventListener('click', downloadHighlightedPdf);
+
+document.addEventListener('keydown', event => {
+  if (event.target && ['INPUT', 'TEXTAREA'].includes(event.target.tagName)) {
+    return;
+  }
+
+  if (event.key === 'ArrowLeft') {
+    renderPage(state.pageNumber - 1);
+  }
+
+  if (event.key === 'ArrowRight') {
+    renderPage(state.pageNumber + 1);
+  }
+});
+
+async function initViewer() {
+  try {
+    const loadingTask = pdfjsLib.getDocument(pdfUrl);
+    state.pdfDocument = await loadingTask.promise;
+    state.pageNumber = clampPage(state.pageNumber);
+    updatePageCounter();
+    updateZoomLabel();
+    renderHighlightsList();
+    await renderPage(state.pageNumber);
+  } catch (err) {
+    console.error('[pdf-viewer] Falha ao carregar PDF:', err);
+    Swal.fire({
+      icon: 'error',
+      title: 'Falha ao abrir PDF',
+      text: 'Nao foi possivel carregar este arquivo agora.'
+    });
+  }
+}
+
+initViewer();
+</script>

@@ -405,6 +405,119 @@ body {
   flex-shrink: 0;
 }
 
+.pdf-viewer-card .card-body {
+  padding: 0;
+}
+
+.pdf-viewer-body {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 290px;
+  min-height: calc(100vh - 180px);
+}
+
+.pdf-tools-panel,
+.pdf-marks-panel {
+  background: #ffffff;
+  padding: 1rem;
+  border-right: 1px solid #edf2f7;
+  overflow-y: auto;
+}
+
+.pdf-marks-panel {
+  border-right: 0;
+  border-left: 1px solid #edf2f7;
+  background: #fbfdff;
+}
+
+.pdf-canvas-panel {
+  background: #eef2f7;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: auto;
+  padding: 1.2rem;
+}
+
+.pdf-stage-wrap {
+  min-width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+#pdf-stage {
+  position: relative;
+  background: #fff;
+  box-shadow: 0 6px 26px rgba(15, 23, 42, 0.16);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#pdf-canvas,
+#pdf-text-layer,
+#pdf-highlight-layer {
+  position: absolute;
+  inset: 0;
+}
+
+#pdf-canvas {
+  position: relative;
+  display: block;
+}
+
+#pdf-text-layer {
+  z-index: 4;
+  user-select: text;
+  cursor: text;
+}
+
+#pdf-text-layer .textLayer {
+  position: static;
+}
+
+#pdf-text-layer span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  transform-origin: 0 0;
+}
+
+#pdf-highlight-layer {
+  z-index: 5;
+  pointer-events: none;
+}
+
+.pdf-highlight-box {
+  position: absolute;
+  background: rgba(255, 235, 59, 0.45);
+  border: 1px solid rgba(239, 190, 15, 0.8);
+  border-radius: 3px;
+}
+
+.pdf-highlights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.pdf-mark-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.7rem 0.75rem;
+}
+
+.pdf-mark-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.pdf-mark-header .btn-link {
+  margin-left: auto;
+  text-decoration: none;
+}
+
 body.auth-page {
   min-height: 100vh;
   display: flex;
@@ -505,6 +618,22 @@ body.auth-page {
   .page-content {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .pdf-viewer-body {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .pdf-tools-panel,
+  .pdf-marks-panel {
+    border-right: 0;
+    border-left: 0;
+    border-bottom: 1px solid #edf2f7;
+  }
+
+  .pdf-canvas-panel {
+    min-height: 55vh;
   }
 }
 

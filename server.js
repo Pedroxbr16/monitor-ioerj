@@ -15,6 +15,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/monito
 const DB_CONNECT_RETRIES = Number(process.env.DB_CONNECT_RETRIES || 15);
 const DB_CONNECT_RETRY_DELAY_MS = Number(process.env.DB_CONNECT_RETRY_DELAY_MS || 2000);
 const RUN_MONITOR_ON_STARTUP = process.env.RUN_MONITOR_ON_STARTUP !== 'false';
+const RUN_ARCHIVE_SYNC_ON_STARTUP = process.env.RUN_ARCHIVE_SYNC_ON_STARTUP !== 'false';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -54,8 +55,8 @@ async function startServer() {
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
   app.use(express.static(path.join(__dirname, 'public')));
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '3mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '3mb' }));
   app.use(session({
     secret: process.env.SESSION_SECRET || 'dev-secret-troque',
     resave: false,
@@ -72,6 +73,7 @@ async function startServer() {
   app.use('/auth', require('./routes/auth'));
   app.use('/keywords', require('./routes/keywords'));
   app.use('/search', require('./routes/search'));
+  app.use('/doerj', require('./routes/doerj'));
   app.use('/alerts', require('./routes/alerts'));
   app.use('/profile', require('./routes/profile'));
 
@@ -98,6 +100,30 @@ async function startServer() {
     res.json({ ok: true, msg: 'Monitoramento iniciado em background.' });
   });
 
+  app.post('/doerj/sync', requireAuth, async (req, res) => {
+    const { syncArchiveToday, syncArchiveByDate } = require('./services/doerjArchiveService');
+    const requestedDate = String(req.body.date || '').trim();
+
+    if (requestedDate) {
+      syncArchiveByDate(requestedDate, {
+        source: 'manual-route',
+        skipExisting: false
+      }).catch(err => console.error('[manual][acervo]', err.message));
+
+      return res.json({
+        ok: true,
+        msg: `Sincronizacao do acervo iniciada para ${requestedDate}.`
+      });
+    }
+
+    syncArchiveToday({
+      source: 'manual-route',
+      skipExisting: false
+    }).catch(err => console.error('[manual][acervo]', err.message));
+
+    return res.json({ ok: true, msg: 'Sincronizacao do acervo iniciada para hoje.' });
+  });
+
   require('./jobs/cron');
 
   app.listen(PORT, () => {
@@ -111,6 +137,19 @@ async function startServer() {
           console.error('[startup] Erro no monitoramento inicial:', err.message);
         });
       }, 1500);
+    }
+
+    if (RUN_ARCHIVE_SYNC_ON_STARTUP) {
+      const { syncArchiveToday } = require('./services/doerjArchiveService');
+
+      setTimeout(() => {
+        syncArchiveToday({
+          source: 'startup',
+          skipExisting: true
+        }).catch(err => {
+          console.error('[startup] Erro na sincronizacao do acervo:', err.message);
+        });
+      }, 2500);
     }
   });
 }

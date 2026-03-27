@@ -1,5 +1,6 @@
 const { buscar } = require('./scraper');
 const { buscarEdicaoExecutiva } = require('./dailyEditionService');
+const { searchArchivedOccurrences } = require('./doerjArchiveService');
 const { normalizeSectionIds, getSectionById } = require('../src/sections');
 
 function normalizeText(value) {
@@ -202,6 +203,27 @@ async function searchOccurrences({ text, sections, dataInicio = null, dataFim = 
 
   if (!keywordText && !sectionIds.length) {
     throw new Error('informe-palavra-ou-secao');
+  }
+
+  const archiveQueryLimit = Number(process.env.ARCHIVE_SEARCH_LIMIT || 3000);
+  try {
+    const archived = await searchArchivedOccurrences({
+      text: keywordText,
+      sections: sectionIds,
+      dataInicio,
+      dataFim,
+      limit: archiveQueryLimit
+    });
+
+    if (archived.length) {
+      return {
+        results: mergeOccurrences(archived),
+        totalRaw: archived.length,
+        sectionIds
+      };
+    }
+  } catch (err) {
+    console.error('[archive-search] Falha ao consultar acervo:', err.message);
   }
 
   if (!sectionIds.length) {

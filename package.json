@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "archive:sync": "node scripts/syncDoerjArchive.js",
+    "archive:backfill": "node scripts/backfillDoerjArchive.js"
   },
   "keywords": [
     "nodejs",
@@ -28,6 +30,7 @@
     "mongoose": "^8.9.5",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
+    "pdf-lib": "^1.17.1",
     "playwright": "^1.58.2"
   },
   "devDependencies": {

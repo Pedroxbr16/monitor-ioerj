@@ -5,6 +5,8 @@ services:
       - "3081:3081"
     env_file:
       - .env
+    volumes:
+      - ./dados:/app/dados
     depends_on:
       mongo:
         condition: service_healthy

@@ -146,6 +146,7 @@
                       data-tipo="<%= encodeURIComponent(item.tipo || '-') %>"
                       data-resumo="<%= encodeURIComponent(item.resumo || '-') %>"
                       data-source-url="<%= encodeURIComponent(item.sourceUrl || '') %>"
+                      data-viewer-url="<%= encodeURIComponent(item.archiveViewerUrl || '') %>"
                     >
                       <td><span class="badge bg-secondary-soft text-secondary"><%= item.dataPublicacao || '-' %></span></td>
                       <td><strong><%= item.idMateria || '-' %></strong></td>
@@ -154,6 +155,16 @@
                       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= item.tipo || '-' %></td>
                       <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<%= item.resumo %>"><%- item.highlightedResumo || '-' %></td>
                       <td>
+                        <% if (item.archiveViewerUrl) { %>
+                          <a
+                            href="<%= item.archiveViewerUrl %>"
+                            class="btn btn-sm btn-outline-warning me-1"
+                            title="Abrir PDF local com marcador"
+                            data-row-ignore="true"
+                          >
+                            <i class="bi bi-highlighter"></i>
+                          </a>
+                        <% } %>
                         <% if (item.sourceUrl) { %>
                           <a
                             href="<%= item.sourceUrl %>"
@@ -240,6 +251,9 @@
         </div>
       </div>
       <div class="modal-footer">
+        <a href="#" class="btn btn-warning disabled" id="search-modal-viewer">
+          <i class="bi bi-highlighter me-1"></i>Marcar no PDF
+        </a>
         <a href="#" class="btn btn-outline-secondary disabled" id="search-modal-open" target="_blank" rel="noopener noreferrer">
           <i class="bi bi-box-arrow-up-right me-1"></i>Abrir no DOERJ
         </a>
@@ -326,6 +340,7 @@ document.querySelectorAll('.search-result-row').forEach(row => {
     if (!searchResultModal) return;
 
     const sourceUrl = decodeURIComponent(row.dataset.sourceUrl || '');
+    const viewerUrl = decodeURIComponent(row.dataset.viewerUrl || '');
     const resumo = decodeURIComponent(row.dataset.resumo || '');
 
     document.getElementById('search-modal-data').textContent = row.dataset.data || '-';
@@ -336,6 +351,7 @@ document.querySelectorAll('.search-result-row').forEach(row => {
     document.getElementById('search-modal-resumo').innerHTML = highlightText(resumo, highlightTerms);
 
     const openButton = document.getElementById('search-modal-open');
+    const viewerButton = document.getElementById('search-modal-viewer');
     if (sourceUrl) {
       openButton.href = sourceUrl;
       openButton.classList.remove('disabled');
@@ -344,6 +360,16 @@ document.querySelectorAll('.search-result-row').forEach(row => {
       openButton.href = '#';
       openButton.classList.add('disabled');
       openButton.setAttribute('aria-disabled', 'true');
+    }
+
+    if (viewerUrl) {
+      viewerButton.href = viewerUrl;
+      viewerButton.classList.remove('disabled');
+      viewerButton.setAttribute('aria-disabled', 'false');
+    } else {
+      viewerButton.href = '#';
+      viewerButton.classList.add('disabled');
+      viewerButton.setAttribute('aria-disabled', 'true');
     }
 
     searchResultModal.show();

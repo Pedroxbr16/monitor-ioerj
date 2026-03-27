@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+debug
+dados/doerj
+dados/backfill-*.log
+dados/*.log
+temp-login-cookie.txt
